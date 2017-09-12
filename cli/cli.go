@@ -2,12 +2,10 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"os"
-	"time"
 
 	"github.com/rgamba/postman/async"
-	"github.com/rgamba/postman/async/protobuf"
+	"github.com/rgamba/postman/proxy"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -41,27 +39,13 @@ func main() {
 		enableLogForRequestAndResponse(&cli)
 	}
 
-	go func() {
-		time.Sleep(time.Second * 2)
-		req := &protobuf.Request{
-			Endpoint:      "/test",
-			Headers:       []string{"header1", "header2"},
-			Body:          "test body!",
-			ResponseQueue: async.GetResponseQueueName(),
-		}
-		queuename := fmt.Sprintf("postman.req.%s", cli.Config.GetString("service.name"))
-		log.Info("Sending request: ", queuename, req)
-		async.SendRequestMessage(queuename, req, func(resp *protobuf.Response, err error) {
-			if err != nil {
-				log.Error(">> Response message error: ", err)
-			} else {
-			}
-			log.Print(">> Message response: ", resp)
-		})
-	}()
-
-	forever := make(chan bool)
-	<-forever
+	// Start http proxy server
+	if cli.isVerbose2() {
+		log.Infof("HTTP proxy server listening on 127.0.0.1:%d", cli.Config.GetInt("http.listen_port"))
+	}
+	if err := proxy.StartHTTPServer(cli.Config.GetInt("http.listen_port")); err != nil {
+		log.Fatal("Proxy HTTP server error: ", err)
+	}
 }
 
 func enableLogForRequestAndResponse(a *app) {

@@ -3,8 +3,9 @@ package protobuf;
 
 message Request {
     string id = 1;
-    string endpoint = 2;
-    repeated string headers = 3;
-    string response_queue = 4;
-    string body = 5;
+    string method = 2;
+    string endpoint = 3;
+    repeated string headers = 4;
+    string response_queue = 5;
+    string body = 6;
 }

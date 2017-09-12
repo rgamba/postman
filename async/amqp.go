@@ -25,10 +25,6 @@ var mutex = &sync.Mutex{}
 var responseQueueName string
 var serviceName string
 
-func GetResponseQueueName() string {
-	return responseQueueName
-}
-
 // Connect starts the connection to the AMQP server.
 func Connect(uri string, service string) error {
 	serviceName = service
@@ -57,6 +53,10 @@ func Connect(uri string, service string) error {
 	return nil
 }
 
+// Declare the channel and queue we'll use for getting the response messages.
+// Notice that this queue needs to be exclusive. This unique instance will be
+// consuming from that queue. Plus, that queue will be destroyed when this
+// instance gets disconnected.
 func declareResponseChannelAndQueue() error {
 	var err error
 	responseChannel, err = conn.Channel()
@@ -110,11 +110,12 @@ func Close() {
 	}
 }
 
+// Consume messages on the response queue.
 func consumeReponseMessages() error {
 	msgs, err := responseChannel.Consume(
 		responseQueueName, // Queue name
 		"",                // Consumer
-		false,             // Auto ack
+		true,              // Auto ack
 		true,              // Exclusive
 		false,             // No-local
 		false,             // No-wait
@@ -137,6 +138,8 @@ func consumeReponseMessages() error {
 	return nil
 }
 
+// Consume messages on the request queue.
+// Note that this is a shared queue, a non exclusive queue.
 func consumeRequestMessages() error {
 	msgs, err := responseChannel.Consume(
 		getRequestQueueName(), // Queue name
@@ -156,6 +159,7 @@ func consumeRequestMessages() error {
 				go OnNewRequest(d.Body)
 			}
 			processMessageRequest(d.Body)
+			d.Ack(false)
 		}
 	}()
 	return nil

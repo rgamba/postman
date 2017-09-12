@@ -34,6 +34,8 @@ func (conf *config) setConfigDefaults() {
 	// Http service
 	conf.viper.SetDefault("http.listen_to_hosts", []string{})
 	conf.viper.SetDefault("http.listen_port", 8130)
+	conf.viper.SetDefault("http.fwd_host", "localhost")
+	conf.viper.SetDefault("http.fwd_port", 80)
 	// Dashboard service
 	conf.viper.SetDefault("dashboard.enabled", true)
 	conf.viper.SetDefault("dashboard.listen_to_hosts", []string{})
