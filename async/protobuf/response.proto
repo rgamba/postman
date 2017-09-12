@@ -1,0 +1,9 @@
+syntax = "proto3";
+package protobuf;
+
+message Response {
+    string request_id = 1; // Same as Request.id
+    int32 status_code = 2;
+    repeated string headers = 3;
+    string body = 4;
+}

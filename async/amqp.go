@@ -2,6 +2,7 @@ package async
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/satori/go.uuid"
 	"github.com/streadway/amqp"
@@ -14,6 +15,7 @@ var OnNewMessage func([]byte)
 var conn *amqp.Connection
 var responseChannel *amqp.Channel
 var sendChannels map[string]*amqp.Channel
+var mutex = &sync.Mutex{}
 var responseQueueName string
 var serviceName string
 
@@ -60,8 +62,7 @@ func declareResponseChannelAndQueue() error {
 }
 
 func ensureRequestQueue() error {
-	var err error
-	ch, err = conn.Channel()
+	ch, err := conn.Channel()
 	if err != nil {
 		return err
 	}
@@ -117,4 +118,58 @@ func consumeReponseMessages() error {
 		}
 	}()
 	return nil
+}
+
+func getOrCreateChannelForQueue(queueName string) (*amqp.Channel, error) {
+	mutex.Lock()
+	ch, ok := sendChannels[queueName]
+	mutex.Unlock()
+	if ok {
+		return ch, nil
+	}
+	// There is no channel in the map, we'll open a new channel and save
+	// it on our sendChannel cache.
+	ch, err := conn.Channel()
+	if err != nil {
+		return nil, err
+	}
+	if !queueExists(ch, queueName) {
+		return nil, fmt.Errorf("No queue declared for the service '%s'", queueName)
+	}
+	mutex.Lock()
+	sendChannels[queueName] = ch
+	mutex.Unlock()
+	return ch, nil
+}
+
+func queueExists(ch *amqp.Channel, queueName string) bool {
+	queue, err := ch.QueueInspect(queueName)
+	if err == nil {
+		return true
+	}
+	return false
+}
+
+func sendMessageToQueue(message []byte, queueName string) error {
+	ch, err := getOrCreateChannelForQueue(queueName)
+	if err != nil {
+		return err
+	}
+	err = publishMessage(ch, message, queueName)
+	return err
+}
+
+func publishMessage(ch *amqp.Channel, message []byte, queueName string) error {
+	err := ch.Publish(
+		"", // Exchange, we don't use exchange
+		queueName,
+		false, // Mandatory
+		false, // Immediate?
+		amqp.Publishing{
+			ContentType:  "application/octet-stream",
+			Body:         message,
+			DeliveryMode: amqp.Persistent,
+		},
+	)
+	return err
 }
