@@ -4,20 +4,30 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/ngaut/log"
 	"github.com/satori/go.uuid"
 	"github.com/streadway/amqp"
 )
 
-// OnNewMessage execute this method each time a new
-// message gets to our response queue.
-var OnNewMessage func([]byte)
+// OnNewResponse execute this method each time a new
+// message response gets to the response queue.
+var OnNewResponse func([]byte)
+
+// OnNewRequest will get executed each time a new requests
+// gets delivered to our instance.
+var OnNewRequest func([]byte)
 
 var conn *amqp.Connection
 var responseChannel *amqp.Channel
-var sendChannels map[string]*amqp.Channel
+var requestChannel *amqp.Channel
+var sendChannels = map[string]*amqp.Channel{}
 var mutex = &sync.Mutex{}
 var responseQueueName string
 var serviceName string
+
+func GetResponseQueueName() string {
+	return responseQueueName
+}
 
 // Connect starts the connection to the AMQP server.
 func Connect(uri string, service string) error {
@@ -38,6 +48,10 @@ func Connect(uri string, service string) error {
 	err = consumeReponseMessages()
 	if err != nil {
 		return fmt.Errorf("Response queue consume error: %s", err)
+	}
+	err = consumeRequestMessages()
+	if err != nil {
+		return fmt.Errorf("Request queue consume error: %s", err)
 	}
 
 	return nil
@@ -111,10 +125,37 @@ func consumeReponseMessages() error {
 	}
 	go func() {
 		for d := range msgs {
-			if OnNewMessage != nil {
-				go OnNewMessage(d.Body)
-				processMessageResponse(d.Body)
+			if OnNewResponse != nil {
+				go OnNewResponse(d.Body)
 			}
+			err := processMessageResponse(d.Body)
+			if err != nil {
+				log.Error(err)
+			}
+		}
+	}()
+	return nil
+}
+
+func consumeRequestMessages() error {
+	msgs, err := responseChannel.Consume(
+		getRequestQueueName(), // Queue name
+		"",    // Consumer
+		false, // Auto ack
+		false, // Exclusive
+		false, // No-local
+		false, // No-wait
+		nil,   // args
+	)
+	if err != nil {
+		return err
+	}
+	go func() {
+		for d := range msgs {
+			if OnNewRequest != nil {
+				go OnNewRequest(d.Body)
+			}
+			processMessageRequest(d.Body)
 		}
 	}()
 	return nil
@@ -143,7 +184,7 @@ func getOrCreateChannelForQueue(queueName string) (*amqp.Channel, error) {
 }
 
 func queueExists(ch *amqp.Channel, queueName string) bool {
-	queue, err := ch.QueueInspect(queueName)
+	_, err := ch.QueueInspect(queueName)
 	if err == nil {
 		return true
 	}

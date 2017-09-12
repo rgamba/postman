@@ -2,9 +2,12 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
+	"time"
 
 	"github.com/rgamba/postman/async"
+	"github.com/rgamba/postman/async/protobuf"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -25,7 +28,7 @@ func main() {
 		log.Info("Service name: ", cli.Config.GetString("service.name"))
 	}
 
-	err = async.Connect(cli.Config.GetString("broker.uri"))
+	err = async.Connect(cli.Config.GetString("broker.uri"), cli.Config.GetString("service.name"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -34,12 +37,44 @@ func main() {
 	}
 	defer async.Close()
 
-	async.OnNewMessage = func(msg []byte) {
-		log.Info("New message: ", string(msg))
+	if cli.isVerbose3() {
+		enableLogForRequestAndResponse(&cli)
 	}
+
+	go func() {
+		time.Sleep(time.Second * 2)
+		req := &protobuf.Request{
+			Endpoint:      "/test",
+			Headers:       []string{"header1", "header2"},
+			Body:          "test body!",
+			ResponseQueue: async.GetResponseQueueName(),
+		}
+		queuename := fmt.Sprintf("postman.req.%s", cli.Config.GetString("service.name"))
+		log.Info("Sending request: ", queuename, req)
+		async.SendRequestMessage(queuename, req, func(resp *protobuf.Response, err error) {
+			if err != nil {
+				log.Error(">> Response message error: ", err)
+			} else {
+			}
+			log.Print(">> Message response: ", resp)
+		})
+	}()
 
 	forever := make(chan bool)
 	<-forever
+}
+
+func enableLogForRequestAndResponse(a *app) {
+	async.OnNewRequest = func(msg []byte) {
+		log.WithFields(log.Fields{
+			"content": string(msg),
+		}).Info("New incoming request")
+	}
+	async.OnNewResponse = func(msg []byte) {
+		log.WithFields(log.Fields{
+			"content": string(msg),
+		}).Info("New incoming response")
+	}
 }
 
 func setLogConfig() {
