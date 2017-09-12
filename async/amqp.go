@@ -15,9 +15,11 @@ var conn *amqp.Connection
 var responseChannel *amqp.Channel
 var sendChannels map[string]*amqp.Channel
 var responseQueueName string
+var serviceName string
 
 // Connect starts the connection to the AMQP server.
-func Connect(uri string) error {
+func Connect(uri string, service string) error {
+	serviceName = service
 	var err error
 	conn, err = amqp.Dial(uri)
 	if err != nil {
@@ -27,10 +29,15 @@ func Connect(uri string) error {
 	if err != nil {
 		return fmt.Errorf("Error creating the AMQP response channel: %s", err)
 	}
+	err = ensureRequestQueue()
+	if err != nil {
+		return fmt.Errorf("Error creating the AMQP request queue: %s", err)
+	}
 	err = consumeReponseMessages()
 	if err != nil {
 		return fmt.Errorf("Response queue consume error: %s", err)
 	}
+
 	return nil
 }
 
@@ -50,6 +57,27 @@ func declareResponseChannelAndQueue() error {
 		nil,               // arguments
 	)
 	return err
+}
+
+func ensureRequestQueue() error {
+	var err error
+	ch, err = conn.Channel()
+	if err != nil {
+		return err
+	}
+	_, err = ch.QueueDeclare(
+		getRequestQueueName(), // Name
+		true,  // Durable
+		true,  // Delete when unused
+		false, // Exclusive
+		false, // No-wait
+		nil,   // arguments
+	)
+	return err
+}
+
+func getRequestQueueName() string {
+	return fmt.Sprintf("postman.req.%s", serviceName)
 }
 
 func getResponseQueueName() string {
@@ -83,7 +111,8 @@ func consumeReponseMessages() error {
 	go func() {
 		for d := range msgs {
 			if OnNewMessage != nil {
-				OnNewMessage(d.Body)
+				go OnNewMessage(d.Body)
+				processMessageResponse(d.Body)
 			}
 		}
 	}()

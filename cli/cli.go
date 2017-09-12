@@ -49,7 +49,7 @@ func setLogConfig() {
 
 func parseArgs() cliArgs {
 	args := cliArgs{}
-	args.ConfigFile = flag.String("config", "config.toml", "The configuration file to use")
+	args.ConfigFile = flag.String("config", "", "The configuration file to use")
 	args.Verbose = flag.Int("v", 1, "The verbosity level [1-3]")
 	flag.Parse()
 	return args
