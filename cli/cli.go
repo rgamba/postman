@@ -43,7 +43,7 @@ func main() {
 	if cli.isVerbose2() {
 		log.Infof("HTTP proxy server listening on 127.0.0.1:%d", cli.Config.GetInt("http.listen_port"))
 	}
-	err := proxy.StartHTTPServer(cli.Config.GetInt("http.listen_port"), cli.Config.GetString("http.fwd_host"))
+	err = proxy.StartHTTPServer(cli.Config.GetInt("http.listen_port"), cli.Config.GetString("http.fwd_host"))
 	if err != nil {
 		log.Fatal("Proxy HTTP server error: ", err)
 	}

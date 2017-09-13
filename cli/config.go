@@ -31,10 +31,11 @@ func initConfig(configFile string) (*config, error) {
 func (conf *config) setConfigDefaults() {
 	// Broker
 	conf.viper.SetDefault("broker.uri", "amqp://guest:guest@localhost:5672")
+	conf.viper.SetDefault("service.name", "my-service")
 	// Http service
 	conf.viper.SetDefault("http.listen_to_hosts", []string{})
 	conf.viper.SetDefault("http.listen_port", 8130)
-	conf.viper.SetDefault("http.fwd_host", "localhost")
+	conf.viper.SetDefault("http.fwd_host", "http://localhost:8000/")
 	conf.viper.SetDefault("http.fwd_port", 80)
 	// Dashboard service
 	conf.viper.SetDefault("dashboard.enabled", true)

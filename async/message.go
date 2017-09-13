@@ -43,7 +43,7 @@ func SendRequestMessage(serviceName string, request *protobuf.Request, onRespons
 	}
 	err = sendMessageToQueue(message, queueName)
 	if err != nil {
-		onResponse(nil, err)
+		go onResponse(nil, err)
 		return
 	}
 	appendRequest(req)
