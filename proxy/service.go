@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 
@@ -28,6 +29,7 @@ func forwardRequestAndCreateResponse(req *protobuf.Request) *protobuf.Response {
 	return &protobuf.Response{
 		Body:       req.Body + " response",
 		StatusCode: 200,
+		RequestId:  req.GetId(),
 	}
 }
 
@@ -36,28 +38,44 @@ func forwardRequestAndCreateResponse(req *protobuf.Request) *protobuf.Response {
 func defaultHandler(w http.ResponseWriter, r *http.Request) {
 	body, _ := ioutil.ReadAll(r.Body)
 	request := &protobuf.Request{
-		Method:   r.Method,
-		Headers:  getHeadersFromRequest(r),
-		Body:     string(body),
-		Endpoint: getPathWithoutServiceName(r.URL.Path),
+		Method:        r.Method,
+		Headers:       getHeadersFromRequest(r),
+		Body:          string(body),
+		Endpoint:      getPathWithoutServiceName(r.URL.Path),
+		ResponseQueue: async.GetResponseQueueName(),
 	}
 	serviceName := getServiceNameFromPath(r.URL.Path)
+	if serviceName == "" {
+		// TODO: generalize and create a return error func
+		http.Error(w, "{\"error\": \"invalid service name\"}", 404)
+		return
+	}
+
+	c := make(chan bool)
 
 	async.SendRequestMessage(serviceName, request, func(resp *protobuf.Response, err error) {
 		if err != nil {
 			log.WithFields(log.Fields{
 				"error": err,
 			}).Errorf("Message response error")
+			return
 		}
 		// Add headers
 		for _, header := range resp.GetHeaders() {
 			parts := strings.Split(header, ":")
-			w.Header().Add(parts[0], parts[1])
+			w.Header().Set(parts[0], parts[1])
 		}
 		w.WriteHeader(int(resp.StatusCode))
-
-		fmt.Fprintf(w, resp.GetBody())
+		w.Write([]byte(resp.GetBody()))
+		c <- true
 	})
+
+	select {
+	case <-c:
+		// all Good
+	case <-time.After(15 * time.Second):
+		http.Error(w, "Timeout", http.StatusInternalServerError)
+	}
 }
 
 func getHeadersFromRequest(r *http.Request) []string {

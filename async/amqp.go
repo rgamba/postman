@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/ngaut/log"
 	"github.com/satori/go.uuid"
 	"github.com/streadway/amqp"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // OnNewResponse execute this method each time a new
@@ -51,6 +52,10 @@ func Connect(uri string, service string) error {
 	}
 
 	return nil
+}
+
+func GetResponseQueueName() string {
+	return responseQueueName
 }
 
 // Declare the channel and queue we'll use for getting the response messages.
@@ -158,7 +163,11 @@ func consumeRequestMessages() error {
 			if OnNewRequest != nil {
 				go OnNewRequest(d.Body)
 			}
-			processMessageRequest(d.Body)
+			if err := processMessageRequest(d.Body); err != nil {
+				log.WithFields(log.Fields{
+					"error": err,
+				}).Error("Error processing request")
+			}
 			d.Ack(false)
 		}
 	}()
