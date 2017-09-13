@@ -107,7 +107,7 @@ func defaultHandler(w http.ResponseWriter, r *http.Request) {
 	// As the response is async we'll need to sync processes.
 	c := make(chan bool)
 	// Send the message via async and get back a response
-	async.SendRequestMessage(serviceName, request, func(resp *protobuf.Response, err error) {
+	async.SendRequestMessage(serviceName, request, func(resp *protobuf.Response, err *async.Error) {
 		sendHTTPResponseFromProtobufResponse(w, resp, err)
 		c <- true
 	})
@@ -120,13 +120,13 @@ func defaultHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func sendHTTPResponseFromProtobufResponse(w http.ResponseWriter, resp *protobuf.Response, err error) {
+func sendHTTPResponseFromProtobufResponse(w http.ResponseWriter, resp *protobuf.Response, err *async.Error) {
 	// First check if we have any errors
 	if err != nil {
 		log.WithFields(log.Fields{
 			"error": err,
 		}).Warnf("Message response error")
-		sendJSON(w, createResponseError(err), http.StatusBadRequest)
+		sendJSON(w, err.ToMap(), http.StatusBadRequest)
 		return
 	}
 	// Add headers

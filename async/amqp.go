@@ -2,6 +2,7 @@ package async
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/satori/go.uuid"
@@ -174,12 +175,12 @@ func consumeRequestMessages() error {
 	return nil
 }
 
-func getOrCreateChannelForQueue(queueName string, checkQueueExists bool) (*amqp.Channel, error) {
+func getOrCreateChannelForQueue(queueName string, checkQueueExists bool) (*amqp.Channel, *Error) {
 	ch, found := getSendChannelCache(queueName)
 	if found {
 		if !queueExists(ch, queueName) && checkQueueExists {
 			deleteSendChannelCache(queueName)
-			return nil, fmt.Errorf("No queue declared for the service '%s'", queueName)
+			return nil, createError("queue_not_found", "The service name is invalid or there is no service instances available at the moment", map[string]string{"queue_name": queueName})
 		}
 		return ch, nil
 	}
@@ -187,13 +188,18 @@ func getOrCreateChannelForQueue(queueName string, checkQueueExists bool) (*amqp.
 	// it on our sendChannel cache.
 	ch, err := conn.Channel()
 	if err != nil {
-		return nil, err
+		return nil, createError("unexpected", err.Error(), nil)
 	}
 	if !queueExists(ch, queueName) && checkQueueExists {
-		return nil, fmt.Errorf("No queue declared for the service '%s'", queueName)
+		return nil, createError("queue_not_found", "The service name is invalid or there is no service instances available at the moment", map[string]string{"queue_name": queueName})
 	}
 	cacheSendChannel(queueName, ch)
 	return ch, nil
+}
+
+func extractServiceNameFromQueueName(queueName string) string {
+	parts := strings.Split(queueName, ".")
+	return parts[len(parts)-1]
 }
 
 func getSendChannelCache(queueName string) (*amqp.Channel, bool) {
@@ -223,7 +229,7 @@ func queueExists(ch *amqp.Channel, queueName string) bool {
 	return false
 }
 
-func sendMessageToQueue(message []byte, queueName string, checkQueueExists bool) error {
+func sendMessageToQueue(message []byte, queueName string, checkQueueExists bool) *Error {
 	ch, err := getOrCreateChannelForQueue(queueName, checkQueueExists)
 	if err != nil {
 		return err
@@ -232,7 +238,7 @@ func sendMessageToQueue(message []byte, queueName string, checkQueueExists bool)
 	return err
 }
 
-func publishMessage(ch *amqp.Channel, message []byte, queueName string) error {
+func publishMessage(ch *amqp.Channel, message []byte, queueName string) *Error {
 	err := ch.Publish(
 		"", // Exchange, we don't use exchange
 		queueName,
@@ -244,5 +250,8 @@ func publishMessage(ch *amqp.Channel, message []byte, queueName string) error {
 			DeliveryMode: amqp.Persistent,
 		},
 	)
-	return err
+	if err == nil {
+		return nil
+	}
+	return createError("unexpected", err.Error(), nil)
 }

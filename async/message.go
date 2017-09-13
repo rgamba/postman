@@ -21,12 +21,12 @@ var requests = map[string]*requestRecord{}
 
 type requestRecord struct {
 	request    *protobuf.Request
-	onResponse func(*protobuf.Response, error)
+	onResponse func(*protobuf.Response, *Error)
 }
 
 // SendRequestMessage sends a new request message through
 // the AMQP server to the appropriate
-func SendRequestMessage(serviceName string, request *protobuf.Request, onResponse func(*protobuf.Response, error)) {
+func SendRequestMessage(serviceName string, request *protobuf.Request, onResponse func(*protobuf.Response, *Error)) {
 	queueName := fmt.Sprintf("postman.req.%s", serviceName)
 	if request.GetId() == "" {
 		uniqid := uuid.NewV4()
@@ -36,14 +36,14 @@ func SendRequestMessage(serviceName string, request *protobuf.Request, onRespons
 		request:    request,
 		onResponse: onResponse,
 	}
-	message, err := proto.Marshal(request)
-	if err != nil {
-		go onResponse(nil, err)
+	message, _err := proto.Marshal(request)
+	if _err != nil {
+		go onResponse(nil, createError("unexpected", _err.Error(), nil))
 		return
 	}
+
 	err = sendMessageToQueue(message, queueName, true)
 	if err != nil {
-		fmt.Println(err)
 		go onResponse(nil, err)
 		return
 	}
