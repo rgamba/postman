@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -49,12 +50,12 @@ func forwardRequestCall(req *protobuf.Request) (*http.Response, error) {
 	client := &http.Client{}
 	endpoint := fmt.Sprintf("%s%s", forwardHost, req.GetEndpoint())
 	// Create request body
-	//var body *bytes.Buffer
+	body := bytes.NewBuffer([]byte{})
 	if req.GetBody() != "" {
-		//body := bytes.NewBuffer([]byte(req.GetBody()))
+		body = bytes.NewBuffer([]byte(req.GetBody()))
 	}
 	// Create request
-	request, err := http.NewRequest(req.GetMethod(), endpoint, nil)
+	request, err := http.NewRequest(req.GetMethod(), endpoint, body)
 	if err != nil {
 		return nil, err
 	}
