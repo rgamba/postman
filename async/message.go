@@ -38,11 +38,12 @@ func SendRequestMessage(serviceName string, request *protobuf.Request, onRespons
 	}
 	message, err := proto.Marshal(request)
 	if err != nil {
-		onResponse(nil, err)
+		go onResponse(nil, err)
 		return
 	}
-	err = sendMessageToQueue(message, queueName)
+	err = sendMessageToQueue(message, queueName, true)
 	if err != nil {
+		fmt.Println(err)
 		go onResponse(nil, err)
 		return
 	}
@@ -91,7 +92,7 @@ func sendResponseMessage(request *protobuf.Request, response *protobuf.Response)
 	if err != nil {
 		return err
 	}
-	err = sendMessageToQueue(message, request.GetResponseQueue())
+	err = sendMessageToQueue(message, request.GetResponseQueue(), false)
 	if err != nil {
 		return err
 	}

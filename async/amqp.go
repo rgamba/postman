@@ -72,8 +72,8 @@ func declareResponseChannelAndQueue() error {
 	_, err = responseChannel.QueueDeclare(
 		responseQueueName, // Name
 		true,              // Durable
-		false,             // Delete when unused
-		true,              // Exclusive
+		true,              // Delete when unused
+		false,             // Exclusive
 		false,             // No-wait
 		nil,               // arguments
 	)
@@ -174,7 +174,7 @@ func consumeRequestMessages() error {
 	return nil
 }
 
-func getOrCreateChannelForQueue(queueName string) (*amqp.Channel, error) {
+func getOrCreateChannelForQueue(queueName string, checkQueueExists bool) (*amqp.Channel, error) {
 	mutex.Lock()
 	ch, ok := sendChannels[queueName]
 	mutex.Unlock()
@@ -187,7 +187,7 @@ func getOrCreateChannelForQueue(queueName string) (*amqp.Channel, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !queueExists(ch, queueName) {
+	if !queueExists(ch, queueName) && checkQueueExists {
 		return nil, fmt.Errorf("No queue declared for the service '%s'", queueName)
 	}
 	mutex.Lock()
@@ -204,8 +204,8 @@ func queueExists(ch *amqp.Channel, queueName string) bool {
 	return false
 }
 
-func sendMessageToQueue(message []byte, queueName string) error {
-	ch, err := getOrCreateChannelForQueue(queueName)
+func sendMessageToQueue(message []byte, queueName string, checkQueueExists bool) error {
+	ch, err := getOrCreateChannelForQueue(queueName, checkQueueExists)
 	if err != nil {
 		return err
 	}

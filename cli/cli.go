@@ -20,6 +20,9 @@ func main() {
 		log.Fatal(err)
 	}
 	cli.validateConfigParams()
+	if cli.isVerbose3() {
+		log.SetLevel(log.DebugLevel)
+	}
 	// Some info output...
 	if cli.isVerbose2() {
 		log.Info("Using configuration file ", *cli.Args.ConfigFile)
@@ -53,18 +56,18 @@ func enableLogForRequestAndResponse(a *app) {
 	async.OnNewRequest = func(msg []byte) {
 		log.WithFields(log.Fields{
 			"content": string(msg),
-		}).Info("New incoming request")
+		}).Debug("New incoming request")
 	}
 	async.OnNewResponse = func(msg []byte) {
 		log.WithFields(log.Fields{
 			"content": string(msg),
-		}).Info("New incoming response")
+		}).Debug("New incoming response")
 	}
 }
 
 func setLogConfig() {
 	log.SetOutput(os.Stdout)
-	log.SetLevel(log.DebugLevel)
+	log.SetLevel(log.InfoLevel)
 }
 
 func parseArgs() cliArgs {

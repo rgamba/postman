@@ -89,6 +89,7 @@ func convertHTTPResponseToProtoResponse(response *http.Response) (*protobuf.Resp
 // We got an outgoing request. defaultHandler will marshall the http request
 // and convert it to a protobuf.Response and then send it via the async package.
 func defaultHandler(w http.ResponseWriter, r *http.Request) {
+	log.Debug("New outgoing request")
 	body, _ := ioutil.ReadAll(r.Body)
 	request := &protobuf.Request{
 		Method:        r.Method,
