@@ -175,10 +175,12 @@ func consumeRequestMessages() error {
 }
 
 func getOrCreateChannelForQueue(queueName string, checkQueueExists bool) (*amqp.Channel, error) {
-	mutex.Lock()
-	ch, ok := sendChannels[queueName]
-	mutex.Unlock()
-	if ok {
+	ch, found := getSendChannelCache(queueName)
+	if found {
+		if !queueExists(ch, queueName) && checkQueueExists {
+			deleteSendChannelCache(queueName)
+			return nil, fmt.Errorf("No queue declared for the service '%s'", queueName)
+		}
 		return ch, nil
 	}
 	// There is no channel in the map, we'll open a new channel and save
@@ -190,10 +192,27 @@ func getOrCreateChannelForQueue(queueName string, checkQueueExists bool) (*amqp.
 	if !queueExists(ch, queueName) && checkQueueExists {
 		return nil, fmt.Errorf("No queue declared for the service '%s'", queueName)
 	}
-	mutex.Lock()
-	sendChannels[queueName] = ch
-	mutex.Unlock()
+	cacheSendChannel(queueName, ch)
 	return ch, nil
+}
+
+func getSendChannelCache(queueName string) (*amqp.Channel, bool) {
+	mutex.Lock()
+	defer mutex.Unlock()
+	ch, ok := sendChannels[queueName]
+	return ch, ok
+}
+
+func deleteSendChannelCache(queueName string) {
+	mutex.Lock()
+	defer mutex.Unlock()
+	delete(sendChannels, queueName)
+}
+
+func cacheSendChannel(queueName string, ch *amqp.Channel) {
+	mutex.Lock()
+	defer mutex.Unlock()
+	sendChannels[queueName] = ch
 }
 
 func queueExists(ch *amqp.Channel, queueName string) bool {
