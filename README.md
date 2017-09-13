@@ -5,7 +5,7 @@ implementing a HTTP API with the benefits of async service communication.
 
 Here is a simple diagram of how Postman works
 
-<img src="./assets/process1.png" align="center" alt="process" />
+<img src="./assets/process1.png" align="left" alt="process" />
 
 Most of the HTTP services use a reverse proxy (nginx, Apache, etc) already, right?
 Think of *postman* as the async equivalent to those reverse proxies.
