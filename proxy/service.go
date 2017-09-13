@@ -102,33 +102,39 @@ func defaultHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "{\"error\": \"invalid service name\"}", 404)
 		return
 	}
-
+	// As the response is async we'll need to sync processes.
 	c := make(chan bool)
-
+	// Send the message via async and get back a response
 	async.SendRequestMessage(serviceName, request, func(resp *protobuf.Response, err error) {
-		if err != nil {
-			log.WithFields(log.Fields{
-				"error": err,
-			}).Warnf("Message response error")
-			sendJSON(w, createResponseError(err), http.StatusBadRequest)
-		} else {
-			// Add headers
-			for _, header := range resp.GetHeaders() {
-				parts := strings.Split(header, ":")
-				w.Header().Set(parts[0], parts[1])
-			}
-			w.WriteHeader(int(resp.StatusCode))
-			w.Write([]byte(resp.GetBody()))
-		}
+		sendHTTPResponseFromProtobufResponse(w, resp, err)
 		c <- true
 	})
-
+	// Wait for the response or timeout after 15 seconds.
 	select {
 	case <-c:
 		// Pass
-	case <-time.After(3 * time.Second):
+	case <-time.After(15 * time.Second):
 		sendJSON(w, createResponseError("timeout"), http.StatusInternalServerError)
 	}
+}
+
+func sendHTTPResponseFromProtobufResponse(w http.ResponseWriter, resp *protobuf.Response, err error) {
+	// First check if we have any errors
+	if err != nil {
+		log.WithFields(log.Fields{
+			"error": err,
+		}).Warnf("Message response error")
+		sendJSON(w, createResponseError(err), http.StatusBadRequest)
+		return
+	}
+	// Add headers
+	for _, header := range resp.GetHeaders() {
+		parts := strings.Split(header, ":")
+		w.Header().Set(parts[0], parts[1])
+	}
+	// Status code and body
+	w.WriteHeader(int(resp.StatusCode))
+	w.Write([]byte(resp.GetBody()))
 }
 
 func createResponseError(err interface{}) map[string]string {
