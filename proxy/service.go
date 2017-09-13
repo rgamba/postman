@@ -13,8 +13,11 @@ import (
 	"github.com/rgamba/postman/async/protobuf"
 )
 
+var forwardHost string
+
 // StartHTTPServer starts the new HTTP proxy service.
-func StartHTTPServer(port int) error {
+func StartHTTPServer(port int, forwardToHost string) error {
+	forwardHost = forwardToHost
 	async.ResponseMiddleware = forwardRequestAndCreateResponse
 
 	http.HandleFunc("/_pm/multiple/", multipleCalls)
@@ -24,13 +27,48 @@ func StartHTTPServer(port int) error {
 
 // Here we need to forward the request as an HTTP call to
 // http.fwd_host which will normally be localhost.
-func forwardRequestAndCreateResponse(req *protobuf.Request) *protobuf.Response {
-	// TODO: make a call to fwd_host here.
-	return &protobuf.Response{
-		Body:       fmt.Sprintf("{\"request\":\"%s\"}", req.GetBody()),
-		StatusCode: 404,
-		RequestId:  req.GetId(),
-		Headers:    []string{"Content-Type: application/json"},
+func forwardRequestAndCreateResponse(req *protobuf.Request) (*protobuf.Response, error) {
+	httpResponse, err := forwardRequestCall(req)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := convertHttpResponseToProtoResponse(httpResponse)
+	if err != nil {
+		return nil, err
+	}
+	resp.RequestId = req.GetId()
+	return resp, nil
+}
+
+// Convert the proto.Request message to an HTTP request and send it through
+func forwardRequestCall(req *protobuf.Request) (*http.Response, error) {
+	// Make request
+	client := &http.Client{}
+	endpoint := fmt.Sprintf("%s%s", forwardHost, req.GetEndpoint())
+	request, _ := http.NewRequest(req.GetMethod(), endpoint, nil)
+	for _, header := range req.GetHeaders() {
+		parts := strings.Split(header, ":")
+		request.Header.Add(parts[0], parts[1])
+	}
+	request.Body.Write([]byte(req.GetBody()))
+	// Get the response
+	response, err := client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+func convertHttpResponseToProtoResponse(response *http.Response) (*protobuf.Response, error) {
+	defer response.Body.Close()
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		return nil, err
+	}
+	resp := &protobuf.Response{
+		Body:       body,
+		StatusCode: int32(response.StatusCode),
+		Headers:    convertHttpHeadersFromSlice(response.Header),
 	}
 }
 
@@ -40,7 +78,7 @@ func defaultHandler(w http.ResponseWriter, r *http.Request) {
 	body, _ := ioutil.ReadAll(r.Body)
 	request := &protobuf.Request{
 		Method:        r.Method,
-		Headers:       getHeadersFromRequest(r),
+		Headers:       convertHttpHeadersToSlice(r.Header),
 		Body:          string(body),
 		Endpoint:      getPathWithoutServiceName(r.URL.Path),
 		ResponseQueue: async.GetResponseQueueName(),
@@ -79,9 +117,9 @@ func defaultHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func getHeadersFromRequest(r *http.Request) []string {
+func convertHttpHeadersFromSlice(head *http.Head) []string {
 	headers := []string{}
-	for headerName, parts := range r.Header {
+	for headerName, parts := range head {
 		newHeader := fmt.Sprintf("%s: %s", headerName, strings.Join(parts, " "))
 		headers = append(headers, newHeader)
 	}

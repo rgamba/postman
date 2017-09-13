@@ -11,7 +11,7 @@ import (
 // ResponseMiddleware is the function that needs to be injected
 // from an outside module.
 // This will be passed a request and must respond a response.
-var ResponseMiddleware func(*protobuf.Request) *protobuf.Response
+var ResponseMiddleware func(*protobuf.Request) (*protobuf.Response, error)
 
 // All requests we send out to AMQP server will be stored here so we
 // can make a match when the message comes back.
@@ -72,7 +72,11 @@ func processMessageRequest(msg []byte) error {
 	}
 	var response *protobuf.Response
 	if ResponseMiddleware != nil {
-		response = ResponseMiddleware(request)
+		var err error
+		response, err = ResponseMiddleware(request)
+		if err != nil {
+			return err
+		}
 	} else {
 		response = &protobuf.Response{StatusCode: 501, RequestId: request.GetId()}
 	}

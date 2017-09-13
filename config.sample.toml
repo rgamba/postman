@@ -16,7 +16,7 @@ listen_to_hosts = [] # Empty list will listen to all hosts
 #listen_to_hosts = ["127.0.0.1", "<otherip>"]
 listen_port = 8130
 # We'll forward all incoming requests as HTTP calls to this host.
-fwd_host = "http://localhost:8080"
+fwd_host = "http://localhost:8000"
 
 [dashboard]
 enabled = true
