@@ -27,9 +27,10 @@ func StartHTTPServer(port int) error {
 func forwardRequestAndCreateResponse(req *protobuf.Request) *protobuf.Response {
 	// TODO: make a call to fwd_host here.
 	return &protobuf.Response{
-		Body:       req.Body + " response",
-		StatusCode: 200,
+		Body:       fmt.Sprintf("{\"request\":\"%s\"}", req.GetBody()),
+		StatusCode: 404,
 		RequestId:  req.GetId(),
+		Headers:    []string{"Content-Type: application/json"},
 	}
 }
 
