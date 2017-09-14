@@ -128,7 +128,11 @@ func getResponseQueueName() string {
 // Close the connection to the AMQP server.
 func Close() {
 	if responseChannel != nil {
+		responseChannel.Cancel(responseQueueName, false)
 		responseChannel.Close()
+	}
+	if requestChannel != nil {
+		requestChannel.Close()
 	}
 	if conn != nil {
 		conn.Close()

@@ -1,11 +1,16 @@
 package async
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
+	"sync"
 	"testing"
 
+	"github.com/golang/protobuf/proto"
+	"github.com/rgamba/postman/async/protobuf"
 	log "github.com/sirupsen/logrus"
+
 	"github.com/streadway/amqp"
 )
 
@@ -29,6 +34,7 @@ func TestRequestQueueName(t *testing.T) {
 
 func TestEnsureRequestQueue(t *testing.T) {
 	_connect()
+	defer _close_connection()
 	if !_queueExists(getRequestQueueName()) {
 		t.Error("Request queue does not exist")
 	}
@@ -36,6 +42,7 @@ func TestEnsureRequestQueue(t *testing.T) {
 
 func TestResponseQueueCreation(t *testing.T) {
 	_connect()
+	defer _close_connection()
 	if responseQueueName == "" {
 		t.Error("Response queue name is empty")
 	}
@@ -49,54 +56,36 @@ func TestResponseQueueCreation(t *testing.T) {
 
 func TestConsumeFromRequestQueue(t *testing.T) {
 	_connect()
+	defer _close_connection()
 	c := make(chan bool)
-	OnNewRequest = func(msg []byte) {
-		if string(msg) != "test" {
-			t.Errorf("Expected 'test' received '%s'", msg)
+	OnNewRequest = func(req protobuf.Request) {
+		if req.GetBody() != "test" {
+			t.Errorf("Expected 'test' received '%s'", req.GetBody())
 		}
 		c <- true
 	}
-	_publishMessage([]byte("test"), getRequestQueueName())
+	request := &protobuf.Request{Body: "test"}
+	msg, _ := proto.Marshal(request)
+	_publishMessage(msg, getRequestQueueName())
 	<-c
 }
 
 func TestConsumeFromResponseQueue(t *testing.T) {
 	_connect()
+	defer _close_connection()
 	c := make(chan bool)
-	OnNewResponse = func(msg []byte) {
-		if string(msg) != "test" {
-			t.Errorf("Expected 'test' received '%s'", msg)
-		}
+	OnNewResponse = func(resp protobuf.Response) {
 		c <- true
 	}
-	_publishMessage([]byte("test"), responseQueueName)
+	response := &protobuf.Response{Body: "test"}
+	msg, _ := proto.Marshal(response)
+	_publishMessage(msg, responseQueueName)
 	<-c
-}
-
-func TestCacheSendChannel(t *testing.T) {
-	_connect()
-	cacheSendChannel("test", nil)
-	ch, ok := sendChannels["test"]
-	if !ok {
-		t.Errorf("Unable to get 'test' sendChannel")
-	}
-	if ch != nil {
-		t.Errorf("Inconrrect channel value")
-	}
-}
-
-func TestDeleteSendChannelCache(t *testing.T) {
-	_connect()
-	sendChannels["test"] = nil
-	deleteSendChannelCache("test")
-	_, ok := sendChannels["test"]
-	if ok {
-		t.Errorf("Unable to delete 'test' sendChannel")
-	}
 }
 
 func TestQueueExists(t *testing.T) {
 	_connect()
+	defer _close_connection()
 	ch, _ := conn.Channel()
 	if exists := queueExists(ch, getRequestQueueName()); !exists {
 		t.Errorf("Unexpected value for queueExists")
@@ -105,6 +94,7 @@ func TestQueueExists(t *testing.T) {
 
 func TestPublishMessage(t *testing.T) {
 	_connect()
+	defer _close_connection()
 	resp := make(chan []byte)
 	_createQueue("test")
 	_consumeQueue("test", func(msg []byte) {
@@ -120,6 +110,95 @@ func TestPublishMessage(t *testing.T) {
 	}
 }
 
+func TestSendMessage(t *testing.T) {
+	_connect()
+	defer _close_connection()
+	_createQueue("postman.req.service1")
+	_consumeQueue("postman.req.service1", func(msg []byte) {
+		req := &protobuf.Request{}
+		proto.Unmarshal(msg, req)
+		response := &protobuf.Response{Body: "testresponse", RequestId: req.GetId()}
+		respMsg, _ := proto.Marshal(response)
+		_publishMessage(respMsg, req.GetResponseQueue())
+	})
+	c := make(chan bool)
+	ch, _ := conn.Channel()
+	req := &protobuf.Request{Body: "test", Method: "GET", ResponseQueue: responseQueueName}
+	SendRequestMessage(ch, "service1", req, func(resp *protobuf.Response, err *Error) {
+		if err != nil {
+			t.Errorf("Unexpected error: %s", err.Error())
+		}
+		if resp.GetBody() != "testresponse" {
+			t.Errorf("Expected response 'testresponse' and got '%s'", resp.GetBody())
+		}
+		c <- true
+	})
+	<-c
+}
+
+func TestSendMessageParallelCalls(t *testing.T) {
+	_connect()
+	defer _close_connection()
+	_createQueue("postman.req.service1")
+	_consumeQueue("postman.req.service1", func(msg []byte) {
+		req := &protobuf.Request{}
+		proto.Unmarshal(msg, req)
+		response := &protobuf.Response{Body: req.GetBody(), RequestId: req.GetId()}
+		respMsg, _ := proto.Marshal(response)
+		_publishMessage(respMsg, req.GetResponseQueue())
+	})
+	var wait sync.WaitGroup
+	for i := 0; i <= 100; i++ {
+		go func(i int) {
+			wait.Add(1)
+			req := &protobuf.Request{Body: fmt.Sprintf("%d", i), Method: "GET", ResponseQueue: responseQueueName}
+			ch, _ := conn.Channel()
+			SendRequestMessage(ch, "service1", req, func(resp *protobuf.Response, err *Error) {
+				expectedBody := fmt.Sprintf("%d", i)
+				if err != nil {
+					t.Errorf("Unexpected error: %s", err.Error())
+				}
+				if resp.GetBody() != expectedBody {
+					t.Errorf("Expected response '%s' and got '%s' instead", expectedBody, resp.GetBody())
+				}
+				wait.Done()
+			})
+		}(i)
+	}
+	wait.Wait()
+}
+
+func TestSendMessageWhenQueueDoesntExist(t *testing.T) {
+	_connect()
+	defer _close_connection()
+	c := make(chan bool)
+	ch, _ := conn.Channel()
+	req := &protobuf.Request{Body: "test", Method: "GET", ResponseQueue: responseQueueName}
+	SendRequestMessage(ch, "service1", req, func(resp *protobuf.Response, err *Error) {
+		if err == nil {
+			t.Errorf("Expected invalid queue error")
+		}
+		c <- true
+	})
+	<-c
+}
+
+func TestSendMessageWhenClosedChannel(t *testing.T) {
+	_connect()
+	defer _close_connection()
+	c := make(chan bool)
+	ch, _ := conn.Channel()
+	ch.Close()
+	req := &protobuf.Request{Body: "test", Method: "GET", ResponseQueue: responseQueueName}
+	SendRequestMessage(ch, "service1", req, func(resp *protobuf.Response, err *Error) {
+		if err == nil {
+			t.Errorf("Expected invalid queue error")
+		}
+		c <- true
+	})
+	<-c
+}
+
 // Misc functions
 
 func _queueExists(queueName string) bool {
@@ -133,6 +212,10 @@ func _queueExists(queueName string) bool {
 
 func _connect() {
 	Connect("amqp://guest:guest@localhost:5672", "test-service")
+}
+
+func _close_connection() {
+	Close()
 }
 
 func _publishMessage(message []byte, queueName string) error {

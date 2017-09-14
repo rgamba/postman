@@ -28,7 +28,9 @@ type requestRecord struct {
 // SendRequestMessage sends a new request message through
 // the AMQP server to the appropriate
 func SendRequestMessage(ch *amqp.Channel, serviceName string, request *protobuf.Request, onResponse func(*protobuf.Response, *Error)) {
-	queueName := getRequestQueueName()
+	// The queue name of the destination service.
+	// Don't confuse this one for getRequestQueueName().
+	queueName := fmt.Sprintf("postman.req.%s", serviceName)
 	setRequestIDIfEmpty(request)
 	if !queueExists(ch, queueName) {
 		go onResponse(nil, createInvalidQueueNameError(queueName))
