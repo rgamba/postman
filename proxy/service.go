@@ -89,6 +89,16 @@ func convertHTTPResponseToProtoResponse(response *http.Response) (*protobuf.Resp
 // We got an outgoing request. defaultHandler will marshall the http request
 // and convert it to a protobuf.Response and then send it via the async package.
 func defaultHandler(w http.ResponseWriter, r *http.Request) {
+	ch, err := async.CreateNewChannel()
+	if err != nil {
+		log.WithFields(log.Fields{
+			"error": err.ToMap(),
+		}).Warnf("Create channel error")
+		sendJSON(w, err.ToMap(), http.StatusBadRequest)
+		return
+	}
+	defer ch.Close()
+
 	log.Debug("New outgoing request")
 	body, _ := ioutil.ReadAll(r.Body)
 	request := &protobuf.Request{
@@ -107,7 +117,7 @@ func defaultHandler(w http.ResponseWriter, r *http.Request) {
 	// As the response is async we'll need to sync processes.
 	c := make(chan bool)
 	// Send the message via async and get back a response
-	async.SendRequestMessage(serviceName, request, func(resp *protobuf.Response, err *async.Error) {
+	async.SendRequestMessage(ch, serviceName, request, func(resp *protobuf.Response, err *async.Error) {
 		sendHTTPResponseFromProtobufResponse(w, resp, err)
 		c <- true
 	})

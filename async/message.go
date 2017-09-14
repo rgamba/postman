@@ -5,6 +5,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/rgamba/postman/async/protobuf"
+	"github.com/streadway/amqp"
 	"github.com/twinj/uuid"
 )
 
@@ -26,28 +27,34 @@ type requestRecord struct {
 
 // SendRequestMessage sends a new request message through
 // the AMQP server to the appropriate
-func SendRequestMessage(serviceName string, request *protobuf.Request, onResponse func(*protobuf.Response, *Error)) {
-	queueName := fmt.Sprintf("postman.req.%s", serviceName)
-	if request.GetId() == "" {
-		uniqid := uuid.NewV4()
-		request.Id = fmt.Sprintf("%s", uniqid)
+func SendRequestMessage(ch *amqp.Channel, serviceName string, request *protobuf.Request, onResponse func(*protobuf.Response, *Error)) {
+	queueName := getRequestQueueName()
+	setRequestIDIfEmpty(request)
+	if !queueExists(ch, queueName) {
+		go onResponse(nil, createInvalidQueueNameError(queueName))
+		return
 	}
-	req := &requestRecord{
-		request:    request,
-		onResponse: onResponse,
-	}
+	// Encode message.
 	message, _err := proto.Marshal(request)
 	if _err != nil {
 		go onResponse(nil, createError("unexpected", _err.Error(), nil))
 		return
 	}
-
-	err := sendMessageToQueue(message, queueName, true)
+	// Send it!
+	err := publishMessage(ch, message, queueName)
 	if err != nil {
 		go onResponse(nil, err)
 		return
 	}
-	appendRequest(req)
+	// Save the request in the request queue.
+	appendRequest(request, onResponse)
+}
+
+func setRequestIDIfEmpty(request *protobuf.Request) {
+	if request.GetId() == "" {
+		uniqid := uuid.NewV4()
+		request.Id = fmt.Sprintf("%s", uniqid)
+	}
 }
 
 // This function gets executed when we get a new response
@@ -58,6 +65,9 @@ func processMessageResponse(msg []byte) error {
 	response := &protobuf.Response{}
 	if err := proto.Unmarshal(msg, response); err != nil {
 		return err
+	}
+	if OnNewResponse != nil {
+		go OnNewResponse(*response)
 	}
 	return matchResponseAndSendCallback(response)
 }
@@ -71,6 +81,11 @@ func processMessageRequest(msg []byte) error {
 	if err := proto.Unmarshal(msg, request); err != nil {
 		return err
 	}
+	// Log?
+	if OnNewRequest != nil {
+		go OnNewRequest(*request)
+	}
+
 	var response *protobuf.Response
 	if ResponseMiddleware != nil {
 		var err error
@@ -88,13 +103,20 @@ func processMessageRequest(msg []byte) error {
 // When we're done processing the message and we already got a Response object
 // we just marshall and send the message through the appropriate response queue.
 func sendResponseMessage(request *protobuf.Request, response *protobuf.Response) error {
+	// TODO: should we reuse a channel or create a new one?
+	ch, _err := CreateNewChannel()
+	if _err != nil {
+		return _err
+	}
+	// Encode response struct.
 	message, err := proto.Marshal(response)
 	if err != nil {
 		return err
 	}
-	err = sendMessageToQueue(message, request.GetResponseQueue(), false)
-	if err != nil {
-		return err
+	// Send through the response queue.
+	_err = publishMessage(ch, message, request.GetResponseQueue())
+	if _err != nil {
+		return _err
 	}
 	return nil
 }
@@ -112,7 +134,11 @@ func matchResponseAndSendCallback(response *protobuf.Response) error {
 	return nil
 }
 
-func appendRequest(req *requestRecord) {
+func appendRequest(request *protobuf.Request, onResponse func(*protobuf.Response, *Error)) {
+	req := &requestRecord{
+		request:    request,
+		onResponse: onResponse,
+	}
 	mutex.Lock()
 	requests[req.request.GetId()] = req
 	mutex.Unlock()

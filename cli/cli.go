@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/rgamba/postman/async"
+	"github.com/rgamba/postman/async/protobuf"
 	"github.com/rgamba/postman/proxy"
 
 	log "github.com/sirupsen/logrus"
@@ -53,15 +54,18 @@ func main() {
 }
 
 func enableLogForRequestAndResponse(a *app) {
-	async.OnNewRequest = func(msg []byte) {
+	async.OnNewRequest = func(req protobuf.Request) {
 		log.WithFields(log.Fields{
-			"content": string(msg),
-		}).Debug("New incoming request")
+			"endpoint":   req.GetEndpoint(),
+			"method":     req.GetMethod(),
+			"request_id": req.GetId(),
+		}).Debug("Incoming request")
 	}
-	async.OnNewResponse = func(msg []byte) {
+	async.OnNewResponse = func(resp protobuf.Response) {
 		log.WithFields(log.Fields{
-			"content": string(msg),
-		}).Debug("New incoming response")
+			"status_code": resp.GetStatusCode(),
+			"request_id":  resp.GetRequestId(),
+		}).Debug("Incoming response")
 	}
 }
 
