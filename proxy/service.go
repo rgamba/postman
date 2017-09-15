@@ -57,6 +57,7 @@ func forwardRequestAndCreateResponse(req *protobuf.Request) (*protobuf.Response,
 }
 
 // Convert the proto.Request message to an HTTP request and send it through
+// to forwardHost via HTTP which will normally live in the same host.
 // TODO: we should split this function in several smaller ones.
 func forwardRequestCall(req *protobuf.Request) (*http.Response, error) {
 	// Make request
@@ -196,7 +197,7 @@ func sendResponse(w http.ResponseWriter, content []byte, statusCode int) {
 func convertHTTPHeadersToSlice(head map[string][]string) []string {
 	headers := []string{}
 	for headerName, parts := range head {
-		newHeader := fmt.Sprintf("%s: %s", headerName, strings.Join(parts, " "))
+		newHeader := fmt.Sprintf("%s: %s", headerName, strings.Join(parts, "; "))
 		headers = append(headers, newHeader)
 	}
 	return headers
