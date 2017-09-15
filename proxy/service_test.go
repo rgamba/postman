@@ -44,19 +44,14 @@ func TestCreateMockServer(t *testing.T) {
 	}
 	defer resp.Body.Close()
 	body, _ := ioutil.ReadAll(resp.Body)
-	if string(body) != "hello world" {
-		t.Errorf("Expected 'hello world' and got '%s'", body)
-	}
+	assert.Equal(t, "hello world", string(body))
 
 	resp, err = http.Get("http://localhost:8084")
-	if err != nil {
-		t.Error(err)
-	}
+	assert.Nil(t, err)
+
 	defer resp.Body.Close()
 	body, _ = ioutil.ReadAll(resp.Body)
-	if string(body) != "service 2" {
-		t.Errorf("Expected 'service 2' and got '%s'", body)
-	}
+	assert.Equal(t, "service 2", string(body))
 }
 
 func TestForwardRequestCall(t *testing.T) {
@@ -132,6 +127,46 @@ func TestConvertHTTPHeadersToSliceMultipleHeaders(t *testing.T) {
 	}
 	newheaders := convertHTTPHeadersToSlice(headers)
 	assert.Equal(t, len(newheaders), len(headers))
+}
+
+func TestForwardRequestAndCreateResponse(t *testing.T) {
+	req := &protobuf.Request{Id: "1", Endpoint: "/one", Method: "GET", Headers: []string{"Content-Type: test"}, Body: "test"}
+	resp, err := forwardRequestAndCreateResponse(req)
+	assert.NoError(t, err)
+	assert.Equal(t, req.Id, resp.RequestId)
+	assert.Equal(t, 200, int(resp.StatusCode))
+	assert.Equal(t, "one", resp.Body)
+}
+
+func TestGetServiceNameFromPath(t *testing.T) {
+	values := [][]string{
+		{"/my-service", "my-service"},
+		{"/my-service/other/index.html", "my-service"},
+		{"my-service/other/", "my-service"},
+		{"my-service/other", "my-service"},
+		{"/my service/other", "my service"},
+		{"/MyService/other", "MyService"},
+		{"", ""},
+	}
+	for i, v := range values {
+		res := getServiceNameFromPath(v[0])
+		assert.Equal(t, v[1], res, fmt.Sprintf("Line %d", i))
+	}
+}
+
+func TestGetPathWithoutServiceName(t *testing.T) {
+	values := [][]string{
+		{"/my-service", "/"},
+		{"/my-service/other/index.html", "/other/index.html"},
+		{"my-service/other/", "/other/"},
+		{"my-service/other", "/other"},
+		{"/MyService/other", "/other"},
+		{"", ""},
+	}
+	for i, v := range values {
+		res := getPathWithoutServiceName(v[0])
+		assert.Equal(t, v[1], res, fmt.Sprintf("Line %d", i))
+	}
 }
 
 // Misc testing functions

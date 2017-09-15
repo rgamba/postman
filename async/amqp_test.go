@@ -12,6 +12,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMain(m *testing.M) {
@@ -21,15 +22,13 @@ func TestMain(m *testing.M) {
 
 func TestConnectInvalid(t *testing.T) {
 	err := Connect("amqp://guest:guest@localhost:56721", "test-service")
-	if err == nil {
-		t.Error("Expected connection error")
-	}
+	assert.NotNil(t, err)
 }
 
 func TestRequestQueueName(t *testing.T) {
-	if getRequestQueueName() != "postman.req.test-service" {
-		t.Error("Invalid getRequestQueueName")
-	}
+	_connect()
+	defer _close_connection()
+	assert.Equal(t, getRequestQueueName(), "postman.req.test-service")
 }
 
 func TestEnsureRequestQueue(t *testing.T) {
@@ -43,15 +42,9 @@ func TestEnsureRequestQueue(t *testing.T) {
 func TestResponseQueueCreation(t *testing.T) {
 	_connect()
 	defer _close_connection()
-	if responseQueueName == "" {
-		t.Error("Response queue name is empty")
-	}
-	if responseChannel == nil {
-		t.Error("Response channel is nil")
-	}
-	if !_queueExists(responseQueueName) {
-		t.Error("Response queue was not created or not created with the appropriate name")
-	}
+	assert.NotEmpty(t, responseQueueName)
+	assert.NotNil(t, responseChannel)
+	assert.True(t, _queueExists(responseQueueName))
 }
 
 func TestConsumeFromRequestQueue(t *testing.T) {
@@ -59,9 +52,7 @@ func TestConsumeFromRequestQueue(t *testing.T) {
 	defer _close_connection()
 	c := make(chan bool)
 	OnNewRequest = func(req protobuf.Request) {
-		if req.GetBody() != "test" {
-			t.Errorf("Expected 'test' received '%s'", req.GetBody())
-		}
+		assert.Equal(t, "test", req.GetBody())
 		c <- true
 	}
 	request := &protobuf.Request{Body: "test"}
@@ -102,12 +93,8 @@ func TestPublishMessage(t *testing.T) {
 	})
 	ch, _ := conn.Channel()
 	err := publishMessage(ch, []byte("test"), "test")
-	if err != nil {
-		t.Error("Unexpected error: ", err.Error())
-	}
-	if string(<-resp) != "test" {
-		t.Error("Unexpected response")
-	}
+	assert.Nil(t, err)
+	assert.Equal(t, string(<-resp), "test")
 }
 
 func TestSendMessage(t *testing.T) {
@@ -125,12 +112,8 @@ func TestSendMessage(t *testing.T) {
 	ch, _ := conn.Channel()
 	req := &protobuf.Request{Body: "test", Method: "GET", ResponseQueue: responseQueueName}
 	SendRequestMessage(ch, "service1", req, func(resp *protobuf.Response, err *Error) {
-		if err != nil {
-			t.Errorf("Unexpected error: %s", err.Error())
-		}
-		if resp.GetBody() != "testresponse" {
-			t.Errorf("Expected response 'testresponse' and got '%s'", resp.GetBody())
-		}
+		assert.Nil(t, err)
+		assert.Equal(t, "testresponse", resp.GetBody())
 		c <- true
 	})
 	<-c
@@ -155,12 +138,8 @@ func TestSendMessageParallelCalls(t *testing.T) {
 			ch, _ := conn.Channel()
 			SendRequestMessage(ch, "service1", req, func(resp *protobuf.Response, err *Error) {
 				expectedBody := fmt.Sprintf("%d", i)
-				if err != nil {
-					t.Errorf("Unexpected error: %s", err.Error())
-				}
-				if resp.GetBody() != expectedBody {
-					t.Errorf("Expected response '%s' and got '%s' instead", expectedBody, resp.GetBody())
-				}
+				assert.Nil(t, err)
+				assert.Equal(t, expectedBody, resp.GetBody())
 				wait.Done()
 			})
 		}(i)
@@ -175,9 +154,7 @@ func TestSendMessageWhenQueueDoesntExist(t *testing.T) {
 	ch, _ := conn.Channel()
 	req := &protobuf.Request{Body: "test", Method: "GET", ResponseQueue: responseQueueName}
 	SendRequestMessage(ch, "service1", req, func(resp *protobuf.Response, err *Error) {
-		if err == nil {
-			t.Errorf("Expected invalid queue error")
-		}
+		assert.NotNil(t, err)
 		c <- true
 	})
 	<-c
@@ -191,9 +168,7 @@ func TestSendMessageWhenClosedChannel(t *testing.T) {
 	ch.Close()
 	req := &protobuf.Request{Body: "test", Method: "GET", ResponseQueue: responseQueueName}
 	SendRequestMessage(ch, "service1", req, func(resp *protobuf.Response, err *Error) {
-		if err == nil {
-			t.Errorf("Expected invalid queue error")
-		}
+		assert.NotNil(t, err)
 		c <- true
 	})
 	<-c

@@ -204,6 +204,9 @@ func convertHTTPHeadersToSlice(head map[string][]string) []string {
 }
 
 func getServiceNameFromPath(path string) string {
+	if path != "" && path[0] != '/' {
+		path = "/" + path
+	}
 	parts := strings.Split(path, "/")
 	if len(parts) <= 1 {
 		return ""
@@ -212,6 +215,9 @@ func getServiceNameFromPath(path string) string {
 }
 
 func getPathWithoutServiceName(path string) string {
+	if path != "" && path[0] != '/' {
+		path = "/" + path
+	}
 	parts := strings.Split(path, "/")
 	if len(parts) <= 1 {
 		return ""
