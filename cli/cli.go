@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/rgamba/postman/async"
+	"github.com/rgamba/postman/async/protobuf"
 	"github.com/rgamba/postman/proxy"
 
 	log "github.com/sirupsen/logrus"
@@ -43,25 +44,27 @@ func main() {
 	}
 
 	// Start http proxy server
+	proxy.StartHTTPServer(cli.Config.GetInt("http.listen_port"), cli.Config.GetString("http.fwd_host"))
 	if cli.isVerbose2() {
 		log.Infof("HTTP proxy server listening on 127.0.0.1:%d", cli.Config.GetInt("http.listen_port"))
 	}
-	err = proxy.StartHTTPServer(cli.Config.GetInt("http.listen_port"), cli.Config.GetString("http.fwd_host"))
-	if err != nil {
-		log.Fatal("Proxy HTTP server error: ", err)
-	}
+	c := make(chan bool)
+	<-c
 }
 
 func enableLogForRequestAndResponse(a *app) {
-	async.OnNewRequest = func(msg []byte) {
+	async.OnNewRequest = func(req protobuf.Request) {
 		log.WithFields(log.Fields{
-			"content": string(msg),
-		}).Debug("New incoming request")
+			"endpoint":   req.GetEndpoint(),
+			"method":     req.GetMethod(),
+			"request_id": req.GetId(),
+		}).Debug("Incoming request")
 	}
-	async.OnNewResponse = func(msg []byte) {
+	async.OnNewResponse = func(resp protobuf.Response) {
 		log.WithFields(log.Fields{
-			"content": string(msg),
-		}).Debug("New incoming response")
+			"status_code": resp.GetStatusCode(),
+			"request_id":  resp.GetRequestId(),
+		}).Debug("Incoming response")
 	}
 }
 

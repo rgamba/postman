@@ -5,6 +5,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/rgamba/postman/async/protobuf"
 	"github.com/satori/go.uuid"
 	"github.com/streadway/amqp"
 
@@ -13,18 +14,24 @@ import (
 
 // OnNewResponse execute this method each time a new
 // message response gets to the response queue.
-var OnNewResponse func([]byte)
+var OnNewResponse func(protobuf.Response)
 
 // OnNewRequest will get executed each time a new requests
 // gets delivered to our instance.
-var OnNewRequest func([]byte)
+var OnNewRequest func(protobuf.Request)
 
+// We'll use only one connection, this is the one.
 var conn *amqp.Connection
+
+// These channels are only used for new message consuming.
 var responseChannel *amqp.Channel
 var requestChannel *amqp.Channel
-var sendChannels = map[string]*amqp.Channel{}
 var mutex = &sync.Mutex{}
+
+// The queue name we'll consume the response messages from.
 var responseQueueName string
+
+// We'll store the service name here.
 var serviceName string
 
 // Connect starts the connection to the AMQP server.
@@ -55,8 +62,20 @@ func Connect(uri string, service string) error {
 	return nil
 }
 
+// GetResponseQueueName doesn't need description.
 func GetResponseQueueName() string {
 	return responseQueueName
+}
+
+// CreateNewChannel is used to create new channels.
+// This func is intended for use outside of this package, for example
+// in the proxy package, it will create one channel per http request.
+func CreateNewChannel() (*amqp.Channel, *Error) {
+	ch, err := conn.Channel()
+	if err != nil {
+		return nil, createError("unexpected", "Unable to create new channel", map[string]string{"trace": err.Error()})
+	}
+	return ch, nil
 }
 
 // Declare the channel and queue we'll use for getting the response messages.
@@ -109,7 +128,11 @@ func getResponseQueueName() string {
 // Close the connection to the AMQP server.
 func Close() {
 	if responseChannel != nil {
+		responseChannel.Cancel(responseQueueName, false)
 		responseChannel.Close()
+	}
+	if requestChannel != nil {
+		requestChannel.Close()
 	}
 	if conn != nil {
 		conn.Close()
@@ -132,9 +155,6 @@ func consumeReponseMessages() error {
 	}
 	go func() {
 		for d := range msgs {
-			if OnNewResponse != nil {
-				go OnNewResponse(d.Body)
-			}
 			err := processMessageResponse(d.Body)
 			if err != nil {
 				log.Error(err)
@@ -161,9 +181,6 @@ func consumeRequestMessages() error {
 	}
 	go func() {
 		for d := range msgs {
-			if OnNewRequest != nil {
-				go OnNewRequest(d.Body)
-			}
 			if err := processMessageRequest(d.Body); err != nil {
 				log.WithFields(log.Fields{
 					"error": err,
@@ -175,50 +192,9 @@ func consumeRequestMessages() error {
 	return nil
 }
 
-func getOrCreateChannelForQueue(queueName string, checkQueueExists bool) (*amqp.Channel, *Error) {
-	ch, found := getSendChannelCache(queueName)
-	if found {
-		if !queueExists(ch, queueName) && checkQueueExists {
-			deleteSendChannelCache(queueName)
-			return nil, createError("queue_not_found", "The service name is invalid or there is no service instances available at the moment", map[string]string{"queue_name": queueName})
-		}
-		return ch, nil
-	}
-	// There is no channel in the map, we'll open a new channel and save
-	// it on our sendChannel cache.
-	ch, err := conn.Channel()
-	if err != nil {
-		return nil, createError("unexpected", err.Error(), nil)
-	}
-	if !queueExists(ch, queueName) && checkQueueExists {
-		return nil, createError("queue_not_found", "The service name is invalid or there is no service instances available at the moment", map[string]string{"queue_name": queueName})
-	}
-	cacheSendChannel(queueName, ch)
-	return ch, nil
-}
-
 func extractServiceNameFromQueueName(queueName string) string {
 	parts := strings.Split(queueName, ".")
 	return parts[len(parts)-1]
-}
-
-func getSendChannelCache(queueName string) (*amqp.Channel, bool) {
-	mutex.Lock()
-	defer mutex.Unlock()
-	ch, ok := sendChannels[queueName]
-	return ch, ok
-}
-
-func deleteSendChannelCache(queueName string) {
-	mutex.Lock()
-	defer mutex.Unlock()
-	delete(sendChannels, queueName)
-}
-
-func cacheSendChannel(queueName string, ch *amqp.Channel) {
-	mutex.Lock()
-	defer mutex.Unlock()
-	sendChannels[queueName] = ch
 }
 
 func queueExists(ch *amqp.Channel, queueName string) bool {
@@ -227,15 +203,6 @@ func queueExists(ch *amqp.Channel, queueName string) bool {
 		return true
 	}
 	return false
-}
-
-func sendMessageToQueue(message []byte, queueName string, checkQueueExists bool) *Error {
-	ch, err := getOrCreateChannelForQueue(queueName, checkQueueExists)
-	if err != nil {
-		return err
-	}
-	err = publishMessage(ch, message, queueName)
-	return err
 }
 
 func publishMessage(ch *amqp.Channel, message []byte, queueName string) *Error {
@@ -254,4 +221,14 @@ func publishMessage(ch *amqp.Channel, message []byte, queueName string) *Error {
 		return nil
 	}
 	return createError("unexpected", err.Error(), nil)
+}
+
+func createInvalidQueueNameError(queueName string) *Error {
+	return createError(
+		"queue_not_found",
+		"The service name is invalid or there is no service instances available at the moment",
+		map[string]string{
+			"queue_name": queueName,
+		},
+	)
 }

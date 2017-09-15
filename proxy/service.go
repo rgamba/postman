@@ -19,13 +19,26 @@ import (
 var forwardHost string
 
 // StartHTTPServer starts the new HTTP proxy service.
-func StartHTTPServer(port int, forwardToHost string) error {
+func StartHTTPServer(port int, forwardToHost string) *http.Server {
 	forwardHost = forwardToHost
 	async.ResponseMiddleware = forwardRequestAndCreateResponse
 
-	http.HandleFunc("/_pm/multiple/", multipleCalls)
-	http.HandleFunc("/", defaultHandler)
-	return http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/_postman/multiple/", multipleCalls)
+	mux.HandleFunc("/", defaultHandler)
+
+	srv := &http.Server{
+		Addr:    fmt.Sprintf(":%d", port),
+		Handler: mux,
+	}
+
+	go func() {
+		if err := srv.ListenAndServe(); err != nil {
+			log.Fatalf("Httpserver: ListenAndServe() error: %s", err)
+		}
+	}()
+
+	return srv
 }
 
 // Here we need to forward the request as an HTTP call to
@@ -44,10 +57,14 @@ func forwardRequestAndCreateResponse(req *protobuf.Request) (*protobuf.Response,
 }
 
 // Convert the proto.Request message to an HTTP request and send it through
+// to forwardHost via HTTP which will normally live in the same host.
 // TODO: we should split this function in several smaller ones.
 func forwardRequestCall(req *protobuf.Request) (*http.Response, error) {
 	// Make request
 	client := &http.Client{}
+	if forwardHost[len(forwardHost)-1] == '/' {
+		forwardHost = forwardHost[:len(forwardHost)-1]
+	}
 	endpoint := fmt.Sprintf("%s%s", forwardHost, req.GetEndpoint())
 	// Create request body
 	body := bytes.NewBuffer([]byte{})
@@ -89,6 +106,16 @@ func convertHTTPResponseToProtoResponse(response *http.Response) (*protobuf.Resp
 // We got an outgoing request. defaultHandler will marshall the http request
 // and convert it to a protobuf.Response and then send it via the async package.
 func defaultHandler(w http.ResponseWriter, r *http.Request) {
+	ch, err := async.CreateNewChannel()
+	if err != nil {
+		log.WithFields(log.Fields{
+			"error": err.ToMap(),
+		}).Warnf("Create channel error")
+		sendJSON(w, err.ToMap(), http.StatusBadRequest)
+		return
+	}
+	defer ch.Close()
+
 	log.Debug("New outgoing request")
 	body, _ := ioutil.ReadAll(r.Body)
 	request := &protobuf.Request{
@@ -107,7 +134,7 @@ func defaultHandler(w http.ResponseWriter, r *http.Request) {
 	// As the response is async we'll need to sync processes.
 	c := make(chan bool)
 	// Send the message via async and get back a response
-	async.SendRequestMessage(serviceName, request, func(resp *protobuf.Response, err *async.Error) {
+	async.SendRequestMessage(ch, serviceName, request, func(resp *protobuf.Response, err *async.Error) {
 		sendHTTPResponseFromProtobufResponse(w, resp, err)
 		c <- true
 	})
@@ -170,13 +197,16 @@ func sendResponse(w http.ResponseWriter, content []byte, statusCode int) {
 func convertHTTPHeadersToSlice(head map[string][]string) []string {
 	headers := []string{}
 	for headerName, parts := range head {
-		newHeader := fmt.Sprintf("%s: %s", headerName, strings.Join(parts, " "))
+		newHeader := fmt.Sprintf("%s: %s", headerName, strings.Join(parts, "; "))
 		headers = append(headers, newHeader)
 	}
 	return headers
 }
 
 func getServiceNameFromPath(path string) string {
+	if path != "" && path[0] != '/' {
+		path = "/" + path
+	}
 	parts := strings.Split(path, "/")
 	if len(parts) <= 1 {
 		return ""
@@ -185,6 +215,9 @@ func getServiceNameFromPath(path string) string {
 }
 
 func getPathWithoutServiceName(path string) string {
+	if path != "" && path[0] != '/' {
+		path = "/" + path
+	}
 	parts := strings.Split(path, "/")
 	if len(parts) <= 1 {
 		return ""
