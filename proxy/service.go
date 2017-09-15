@@ -19,13 +19,26 @@ import (
 var forwardHost string
 
 // StartHTTPServer starts the new HTTP proxy service.
-func StartHTTPServer(port int, forwardToHost string) error {
+func StartHTTPServer(port int, forwardToHost string) *http.Server {
 	forwardHost = forwardToHost
 	async.ResponseMiddleware = forwardRequestAndCreateResponse
 
-	http.HandleFunc("/_pm/multiple/", multipleCalls)
-	http.HandleFunc("/", defaultHandler)
-	return http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/_postman/multiple/", multipleCalls)
+	mux.HandleFunc("/", defaultHandler)
+
+	srv := &http.Server{
+		Addr:    fmt.Sprintf(":%d", port),
+		Handler: mux,
+	}
+
+	go func() {
+		if err := srv.ListenAndServe(); err != nil {
+			log.Fatalf("Httpserver: ListenAndServe() error: %s", err)
+		}
+	}()
+
+	return srv
 }
 
 // Here we need to forward the request as an HTTP call to
@@ -48,6 +61,9 @@ func forwardRequestAndCreateResponse(req *protobuf.Request) (*protobuf.Response,
 func forwardRequestCall(req *protobuf.Request) (*http.Response, error) {
 	// Make request
 	client := &http.Client{}
+	if forwardHost[len(forwardHost)-1] == '/' {
+		forwardHost = forwardHost[:len(forwardHost)-1]
+	}
 	endpoint := fmt.Sprintf("%s%s", forwardHost, req.GetEndpoint())
 	// Create request body
 	body := bytes.NewBuffer([]byte{})
