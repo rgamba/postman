@@ -12,6 +12,7 @@ notifications:
   email: false
 
 install:
+  - go get -t ./...
   - go get github.com/golang/dep/cmd/dep
   - dep ensure
 
