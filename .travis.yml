@@ -2,7 +2,6 @@ language: go
 sudo: required
 
 go:
-  - 1.7.x
   - 1.8.x
   - master
 
@@ -10,13 +9,12 @@ services:
   - rabbitmq
 
 notifications:
-    email: false
-
-before_install:
-    - make test.setup
+  email: false
 
 script:
-    - make test
+  - make test.setup
+  - make test
+  - make build
 
 matrix:
   allow_failures:
