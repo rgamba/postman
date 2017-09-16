@@ -24,9 +24,12 @@ const TestServerPort = 8081
 
 func TestMain(m *testing.M) {
 	log.SetOutput(ioutil.Discard)
+	// Mockserver is the server that will simulate the microservice.
 	mockServer = _createMockServer()
 	forwardHost = fmt.Sprintf("http://localhost:%d", MockServerPort)
 	async.Connect("amqp://guest:guest@localhost:5672/", "test")
+	// Http server or testserver is the HTTP proxy server exposed by
+	// postman.
 	httpServer = StartHTTPServer(TestServerPort, forwardHost)
 	defer async.Close()
 	os.Exit(m.Run())
