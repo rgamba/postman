@@ -11,11 +11,18 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+var (
+	// Version of the current build. Set at build time.
+	Version = "-"
+	// Build is the git commit hash. Set at build time.
+	Build = "-"
+)
+
 func main() {
 	setLogConfig()
 	// Create the cli app
 	cli := createApp()
-	log.Infof("Starting Postman v%s", cli.Version)
+	log.Infof("Postman %s, Build: %s", Version, Build)
 	var err error
 	if cli.Config, err = initConfig(*cli.Args.ConfigFile); err != nil {
 		log.Fatal(err)

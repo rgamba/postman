@@ -7,9 +7,8 @@ import (
 )
 
 type app struct {
-	Version string
-	Args    cliArgs
-	Config  *config
+	Args   cliArgs
+	Config *config
 }
 
 type cliArgs struct {
@@ -19,9 +18,8 @@ type cliArgs struct {
 
 func createApp() app {
 	return app{
-		Version: "0.1",
-		Args:    parseArgs(),
-		Config:  nil,
+		Args:   parseArgs(),
+		Config: nil,
 	}
 }
 
