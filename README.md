@@ -49,9 +49,24 @@ Service A        Service A     RabbitMQ      Service B     Service B
                  Postman                     Postman
 ```
 
-# Getting Started
+# Installation
+
+To install, just download the appropriate binary from the releases, extract and execute
+directly or, preferrably, copy to one dir inside your `PATH`. No other dependencies required.
+
+## Getting started
 
 ```bash
-postman --config /path/to/config.toml --logfile /var/log/postman.log
+postman --config /path/to/config.toml
 ```
+
+# Compile from source
+
+```bash
+go get github.com/rgamba/postman
+cd $GOPATH/src/github.com/rgamba/postman
+make
+```
+
+
 
