@@ -2,6 +2,12 @@
 
 
 [[projects]]
+  name = "github.com/davecgh/go-spew"
+  packages = ["spew"]
+  revision = "346938d642f2ec3594ed81d874461961cd0faa76"
+  version = "v1.1.0"
+
+[[projects]]
   name = "github.com/fsnotify/fsnotify"
   packages = ["."]
   revision = "629574ca2a5df945712d3079857300b5e4da0236"
@@ -32,12 +38,6 @@
   revision = "d0303fe809921458f417bcf828397a65db30a7e4"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/ngaut/log"
-  packages = ["."]
-  revision = "d2af3a61f64d093457fb23b25d20f4ce3cd551ce"
-
-[[projects]]
   name = "github.com/pelletier/go-buffruneio"
   packages = ["."]
   revision = "c37440a7cf42ac63b919c752ca73a85067e05992"
@@ -47,6 +47,12 @@
   name = "github.com/pelletier/go-toml"
   packages = ["."]
   revision = "5ccdfb18c776b740aecaf085c4d9a2779199c279"
+  version = "v1.0.0"
+
+[[projects]]
+  name = "github.com/pmezard/go-difflib"
+  packages = ["difflib"]
+  revision = "792786c7400a136282c1664665ae0a8db921c6c2"
   version = "v1.0.0"
 
 [[projects]]
@@ -98,6 +104,12 @@
   revision = "2cbfe40c9341ad63ba23e53013b3ddc7989d801c"
 
 [[projects]]
+  name = "github.com/stretchr/testify"
+  packages = ["assert"]
+  revision = "69483b4bd14f5845b5a1e55bca19e954e827f1d0"
+  version = "v1.1.4"
+
+[[projects]]
   name = "github.com/twinj/uuid"
   packages = ["."]
   revision = "835a10bbd6bce40820349a68b1368a62c3c5617c"
@@ -130,6 +142,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "db9713a3f77f648634617d0b7dae0970087da8bc8ef58501b7fbe3c8ffe5865b"
+  inputs-digest = "fd82db7d39a37d0b2096a7b46c64b26cd9599d4a96cd84ddd71a9f2f057159bc"
   solver-name = "gps-cdcl"
   solver-version = 1

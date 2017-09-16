@@ -128,6 +128,10 @@ func defaultHandler(w http.ResponseWriter, r *http.Request) {
 	serviceName := getServiceNameFromPath(r.URL.Path)
 	if serviceName == "" {
 		// TODO: generalize and create a return error func
+		sendJSON(w, map[string]string{
+			"error":   "invalid_parameters",
+			"message": "service name is required",
+		}, 400)
 		http.Error(w, "{\"error\": \"invalid service name\"}", 404)
 		return
 	}
