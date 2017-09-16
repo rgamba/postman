@@ -1,5 +1,7 @@
 # Postman
 
+[![Build Status](https://travis-ci.org/rgamba/postman.svg)](https://travis-ci.org/rgamba/postman)
+
 Postman is a HTTP to AMQP reverse proxy that combines the ease of
 implementing a HTTP API with the benefits of async service communication.
 

@@ -7,11 +7,11 @@ import (
 )
 
 type app struct {
-	Args   cliArgs
+	Args   cmdArgs
 	Config *config
 }
 
-type cliArgs struct {
+type cmdArgs struct {
 	ConfigFile *string
 	Verbose    *int
 }

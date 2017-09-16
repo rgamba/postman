@@ -20,40 +20,40 @@ var (
 
 func main() {
 	setLogConfig()
-	// Create the cli app
-	cli := createApp()
+	// Create the cmd app
+	cmd := createApp()
 	log.Infof("Postman %s, Build: %s", Version, Build)
 	var err error
-	if cli.Config, err = initConfig(*cli.Args.ConfigFile); err != nil {
+	if cmd.Config, err = initConfig(*cmd.Args.ConfigFile); err != nil {
 		log.Fatal(err)
 	}
-	cli.validateConfigParams()
-	if cli.isVerbose3() {
+	cmd.validateConfigParams()
+	if cmd.isVerbose3() {
 		log.SetLevel(log.DebugLevel)
 	}
 	// Some info output...
-	if cli.isVerbose2() {
-		log.Info("Using configuration file ", *cli.Args.ConfigFile)
-		log.Info("Service name: ", cli.Config.GetString("service.name"))
+	if cmd.isVerbose2() {
+		log.Info("Using configuration file ", *cmd.Args.ConfigFile)
+		log.Info("Service name: ", cmd.Config.GetString("service.name"))
 	}
 
-	err = async.Connect(cli.Config.GetString("broker.uri"), cli.Config.GetString("service.name"))
+	err = async.Connect(cmd.Config.GetString("broker.uri"), cmd.Config.GetString("service.name"))
 	if err != nil {
 		log.Fatal(err)
 	}
-	if cli.isVerbose2() {
-		log.Infof("Successfully connected to AMQP server on %s", cli.Config.GetString("broker.uri"))
+	if cmd.isVerbose2() {
+		log.Infof("Successfully connected to AMQP server on %s", cmd.Config.GetString("broker.uri"))
 	}
 	defer async.Close()
 
-	if cli.isVerbose3() {
-		enableLogForRequestAndResponse(&cli)
+	if cmd.isVerbose3() {
+		enableLogForRequestAndResponse(&cmd)
 	}
 
 	// Start http proxy server
-	proxy.StartHTTPServer(cli.Config.GetInt("http.listen_port"), cli.Config.GetString("http.fwd_host"))
-	if cli.isVerbose2() {
-		log.Infof("HTTP proxy server listening on 127.0.0.1:%d", cli.Config.GetInt("http.listen_port"))
+	proxy.StartHTTPServer(cmd.Config.GetInt("http.listen_port"), cmd.Config.GetString("http.fwd_host"))
+	if cmd.isVerbose2() {
+		log.Infof("HTTP proxy server listening on 127.0.0.1:%d", cmd.Config.GetInt("http.listen_port"))
 	}
 	c := make(chan bool)
 	<-c
@@ -80,8 +80,8 @@ func setLogConfig() {
 	log.SetLevel(log.InfoLevel)
 }
 
-func parseArgs() cliArgs {
-	args := cliArgs{}
+func parseArgs() cmdArgs {
+	args := cmdArgs{}
 	args.ConfigFile = flag.String("config", "", "The configuration file to use")
 	args.Verbose = flag.Int("v", 1, "The verbosity level [1-3]")
 	flag.Parse()

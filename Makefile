@@ -8,7 +8,7 @@ LDFLAGS=-ldflags "-X main.Version=${VERSION} -X main.Build=${BUILD}"
 .PHONY: build
 build:
 	@echo "==> Building"
-	@go build ${LDFLAGS} -o build/${BINARY} cli/*.go
+	@go build ${LDFLAGS} -o build/${BINARY} cmd/*.go
 	@echo "\n==>\033[32m Ok\033[m\n"
 
 .PHONY: test
@@ -19,7 +19,7 @@ test:
 .PHONY: lint
 lint:
 	@echo "==> Running static analysis tests"
-	@golint -set_exit_status -min_confidence 0.9 cli/...
+	@golint -set_exit_status -min_confidence 0.9 cmd/...
 	@golint -set_exit_status -min_confidence 0.9 async/...
 	@golint -set_exit_status -min_confidence 0.9 proxy/...
 
