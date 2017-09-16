@@ -11,6 +11,12 @@ build:
 	@go build ${LDFLAGS} -o build/${BINARY} cmd/*.go
 	@echo "\n==>\033[32m Ok\033[m\n"
 
+.PHONY: install
+install:
+	@echo "==> Installing in ${GOPATH}/bin/${BINARY}"
+	@cp build/${BINARY} ${GOPATH}/bin/
+	@echo "\n==>\033[32m Ok\033[m\n"
+
 .PHONY: test
 test:
 	@echo "==> Running all tests"
