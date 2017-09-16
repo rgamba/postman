@@ -12,9 +12,7 @@ notifications:
   email: false
 
 script:
-  - make test.setup
-  - make test
-  - make build
+  - go test ./...
 
 matrix:
   allow_failures:
