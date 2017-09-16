@@ -1,9 +1,13 @@
 language: go
+sudo: required
 
-matrix:
-    - include:
-        - go: 1.6
-        - go: 1.7
+go:
+  - 1.7.x
+  - 1.8.x
+  - master
+
+services:
+  - rabbitmq
 
 notifications:
     email: false
@@ -13,3 +17,8 @@ before_install:
 
 script:
     - make test
+
+matrix:
+  allow_failures:
+    - go: master
+  fast_finish: true
