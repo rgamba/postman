@@ -132,7 +132,6 @@ func defaultHandler(w http.ResponseWriter, r *http.Request) {
 			"error":   "invalid_parameters",
 			"message": "service name is required",
 		}, 400)
-		http.Error(w, "{\"error\": \"invalid service name\"}", 404)
 		return
 	}
 	// As the response is async we'll need to sync processes.

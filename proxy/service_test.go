@@ -20,13 +20,14 @@ var httpServer *http.Server
 var mockServer *http.Server
 
 const MockServerPort = 8083
+const TestServerPort = 8081
 
 func TestMain(m *testing.M) {
 	log.SetOutput(ioutil.Discard)
 	mockServer = _createMockServer()
 	forwardHost = fmt.Sprintf("http://localhost:%d", MockServerPort)
 	async.Connect("amqp://guest:guest@localhost:5672/", "test")
-	httpServer = StartHTTPServer(8081, forwardHost)
+	httpServer = StartHTTPServer(TestServerPort, forwardHost)
 	defer async.Close()
 	os.Exit(m.Run())
 }
@@ -169,6 +170,56 @@ func TestGetPathWithoutServiceName(t *testing.T) {
 	}
 }
 
+func TestServerDefaultHandlerWhenNoServiceNameIsProvided(t *testing.T) {
+	_, statusCode, err := _getRequestTestServer("/")
+	assert.Nil(t, err)
+	assert.Equal(t, 400, statusCode)
+}
+
+func TestServerDefaultHandlerWhenInvalidServiceNameIsProvided(t *testing.T) {
+	_, statusCode, err := _getRequestTestServer("/invalidservice/other")
+	assert.Nil(t, err)
+	assert.Equal(t, 400, statusCode)
+}
+
+func TestServerDefaultHandlerWhenTimeout(t *testing.T) {
+	ch, _ := async.CreateNewChannel()
+	_, err := ch.QueueDeclare(
+		"postman.req.timeout", // Name
+		false, // Durable
+		false, // Delete when unused
+		false, // Exclusive
+		false, // No-wait
+		nil,   // arguments
+	)
+	defer ch.QueueDelete("postman.req.timeout", false, false, true)
+	defer ch.Close()
+	_, statusCode, err := _getRequestTestServer("/timeout/other")
+	assert.Nil(t, err)
+	assert.Equal(t, 500, statusCode)
+}
+
+func TestServerDefaultHandlerOk(t *testing.T) {
+	body, statusCode, err := _getRequestTestServer("/test/one")
+	assert.Nil(t, err)
+	assert.Equal(t, 200, statusCode)
+	assert.Equal(t, "one", body)
+}
+
+func TestServerDefaultHandlerStatus404(t *testing.T) {
+	body, statusCode, err := _getRequestTestServer("/test/notfound")
+	assert.Nil(t, err)
+	assert.Equal(t, 404, statusCode)
+	assert.Equal(t, "notfound", body)
+}
+
+func TestServerDefaultHandlerHome(t *testing.T) {
+	body, statusCode, err := _getRequestTestServer("/test")
+	assert.Nil(t, err)
+	assert.Equal(t, 200, statusCode)
+	assert.Equal(t, "hello world", body)
+}
+
 // Misc testing functions
 
 func _createMockServer() *http.Server {
@@ -200,18 +251,26 @@ func _createServer(mux *http.ServeMux, port int) *http.Server {
 	return server
 }
 
-func _getRequestMockServer(path string) (string, error) {
+func _getRequestServer(path string, port int) (string, int, error) {
 	if path == "" || path[0] != '/' {
 		path = "/" + path
 	}
-	url := fmt.Sprintf("http://localhost:%d%s", MockServerPort, path)
+	url := fmt.Sprintf("http://localhost:%d%s", port, path)
 	resp, err := http.Get(url)
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 	defer resp.Body.Close()
 	body, _ := ioutil.ReadAll(resp.Body)
-	return string(body), nil
+	return string(body), resp.StatusCode, nil
+}
+
+func _getRequestMockServer(path string) (string, int, error) {
+	return _getRequestServer(path, MockServerPort)
+}
+
+func _getRequestTestServer(path string) (string, int, error) {
+	return _getRequestServer(path, TestServerPort)
 }
 
 func _postRequestMockServer(path string, values url.Values) (string, error) {
