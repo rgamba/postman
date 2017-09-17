@@ -56,13 +56,16 @@ Service A        Service A     RabbitMQ      Service B     Service B
 In detail...
 
 1. **Service A** sends a regular HTTP request to **Service B** via postman.
-2. Postman gets the message and sends it over RabbitMQ.
+2. Postman on **Service A** gets the message and sends it over RabbitMQ.
 3. RabbitMQ sends the message through to the next available **Service B** instance.
 4. Postman on **Service B** gets the RabbitMQ message and creates a regular HTTP request to **Service B**
 5. **Service B** processes the request and send a response back.
 6. Postman on **Service B** sends the response through RabbitMQ.
 7. Postman on **Service A** gets the response.
-8. Postman on **Service A** send the response back to **Service A** as a regular HTTP response. 
+8. Postman on **Service A** send the response back to **Service A** as a regular HTTP response.
+
+These may look like a lot of steps, the good thing is that from the perspective of **Service A** 
+(who made the request on the first place), it all looks like a very simple HTTP request to **Service B**.
 
 # Installation
 
@@ -81,6 +84,7 @@ postman -config /path/to/config.toml
 go get github.com/rgamba/postman
 cd $GOPATH/src/github.com/rgamba/postman
 make
+make install
 ```
 
 
