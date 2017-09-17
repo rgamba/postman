@@ -3,12 +3,18 @@ BINARY=postman
 VERSION=0.1
 BUILD=`git rev-parse HEAD | head -c 8`
 
-LDFLAGS=-ldflags "-X main.Version=${VERSION} -X main.Build=${BUILD}"
+LDFLAGS="-X main.Version=${VERSION} -X main.Build=${BUILD}"
 
 .PHONY: build
 build:
 	@echo "==> Building"
-	@go build ${LDFLAGS} -o build/${BINARY} cmd/*.go
+	@go build -ldflags ${LDFLAGS} -o build/${BINARY} cmd/*.go
+	@echo "\n==>\033[32m Ok\033[m\n"
+
+.PHONY: release
+release:
+	@echo "==> Releasing for all platforms"
+	@python scripts/release.py -ldflags \"${LDFLAGS}\" cmd/*.go
 	@echo "\n==>\033[32m Ok\033[m\n"
 
 .PHONY: install
@@ -46,4 +52,7 @@ todo:
 		--text \
 		--color \
 		-nRo -E ' TODO:.*|SkipNow' .
-	
+
+.PHONY:clean
+clean:
+	@rm -rf build/*
