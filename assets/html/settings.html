@@ -1,0 +1,36 @@
+{{template "header.html" .}}
+
+<div class="container">
+    <h1 style="margin-bottom: 30px">Settings</h1>
+    <h4>Service</h4>
+    <table class="table" style="table-layout: fixed">
+        {{range $key, $value := .service}}
+        <tr>
+            <th>{{$key}}</th>
+            <td>{{$value}}</td>
+        </tr>
+        {{end}}
+    </table>
+
+    <h4>HTTP</h4>
+    <table class="table" style="table-layout: fixed">
+        {{range $key, $value := .http}}
+        <tr>
+            <th>{{$key}}</th>
+            <td>{{$value}}</td>
+        </tr>
+        {{end}}
+    </table>
+
+    <h4>Dashboard</h4>
+    <table class="table" style="table-layout: fixed">
+        {{range $key, $value := .dashboard}}
+        <tr>
+            <th>{{$key}}</th>
+            <td>{{$value}}</td>
+        </tr>
+        {{end}}
+    </table>
+</div>
+
+{{template "footer.html" .}}

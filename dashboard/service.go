@@ -13,13 +13,19 @@ import (
 	"github.com/spf13/viper"
 )
 
-var appConfig *viper.Viper
+var (
+	appConfig  *viper.Viper
+	appVersion string
+	appBuild   string
+)
 
 // StartHTTPServer starts the new HTTP Dashboard service.
-func StartHTTPServer(port int, config *viper.Viper) *http.Server {
+func StartHTTPServer(port int, config *viper.Viper, version string, build string) *http.Server {
 	appConfig = config
+	appVersion = version
+	appBuild = build
 	mux := http.NewServeMux()
-	mux.HandleFunc("/stats/messages", messageStatsHandler)
+	mux.HandleFunc("/settings", settingsHandler)
 	mux.HandleFunc("/", defaultHandler)
 
 	srv := &http.Server{
@@ -36,8 +42,13 @@ func StartHTTPServer(port int, config *viper.Viper) *http.Server {
 	return srv
 }
 
-func messageStatsHandler(w http.ResponseWriter, r *http.Request) {
-
+func settingsHandler(w http.ResponseWriter, r *http.Request) {
+	context := map[string]interface{}{
+		"service":   appConfig.GetStringMap("service"),
+		"http":      appConfig.GetStringMap("http"),
+		"dashboard": appConfig.GetStringMap("dashboard"),
+	}
+	renderView(w, "settings.html", context)
 }
 
 func defaultHandler(w http.ResponseWriter, r *http.Request) {
@@ -46,6 +57,8 @@ func defaultHandler(w http.ResponseWriter, r *http.Request) {
 		"currentServiceInstances": async.GetServiceInstances(appConfig.GetString("service.name")),
 		"processId":               os.Getpid(),
 		"requests":                stats.GetRequestsLastMinutePerService(),
+		"appVersion":              appVersion,
+		"appBuild":                appBuild,
 	}
 	renderView(w, "index.html", context)
 }

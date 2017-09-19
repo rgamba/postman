@@ -1,134 +1,68 @@
+{{template "header.html" .}}
+<div class="container">
 
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <meta name="description" content="">
-    <meta name="author" content="">
+    <div class="starter-template">
+    <h1>Dashboard</h1>
 
-    <title>Postman - Dashboard</title>
-
-    <!-- Bootstrap core CSS -->
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/css/bootstrap.min.css" integrity="sha384-/Y6pD6FV/Vv2HJnA6t+vslU6fwYXjCFtcEpHbNJ0lyAFsXTsjBbfaDjzALeQsN6M" crossorigin="anonymous">    
-    <style>
-        body {
-            padding-top: 7rem;
-            color: #555;
-          }
-        .card .table td,.card .table th {
-            padding-left: 3px;
-            padding-right: 3px;
-        }
-        .footer {
-            margin-top: 35px;
-            padding-top: 1.5rem;
-            color: #777;
-            border-top: .05rem solid #e6e6e6;
-          }
-    </style>
-  </head>
-
-  <body>
-
-    <nav class="navbar navbar-expand-md navbar-dark bg-dark fixed-top">
-        <div class="container">
-            <a class="navbar-brand" href="#" style="margin-right: 35px">Postman</a>
-            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarsExampleDefault" aria-controls="navbarsExampleDefault" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-
-            <div class="collapse navbar-collapse" id="navbarsExampleDefault">
-                <ul class="navbar-nav mr-auto">
-                <li class="nav-item active">
-                    <a class="nav-link" href="#">Dashboard</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#">Circuit breaking</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#">Settings</a>
-                </li>
-                </ul>
-            </div>
-        </div>
-    </nav>
-
-    <div class="container">
-
-      <div class="starter-template">
-        <h1>Dashboard</h1>
-
-        <div class="row" style="margin-top: 40px">
-            <div class="col-sm-6">
-                <div class="card">
-                    <div class="card-body">
-                        <h4 class="card-title">Current service</h4>
-                        <h6 class="card-subtitle mb-2 text-muted">This instance info.</h6>
-                        <table class="table" style="margin-top: 30px">
-                            <tr>
-                                <th scope="row">Service name</th>
-                                <td><span class="badge badge-primary" style="font-size: 100%">{{.currentServiceName}}</span></td>
-                            </tr>
-                            <tr>
-                                <th scope="row">Active instances</th>
-                                <td>{{.currentServiceInstances}}</td>
-                            </tr>
-                        </table>
-                        <a href="#" class="card-link">View more</a>
-                    </div>
-                </div>
-            </div>
-            <div class="col-sm-6">
-                <div class="card">
-                    <div class="card-body">
-                        <h4 class="card-title">Current process</h4>
-                        <h6 class="card-subtitle mb-2 text-muted">Process info.</h6>
-                        <table class="table" style="margin-top: 30px">
-                            <tr>
-                                <th scope="row">Process ID</th>
-                                <td>{{.processId}}</td>
-                            </tr>
-                        </table>
-                    </div>
+    <div class="row" style="margin-top: 40px">
+        <div class="col-sm-6">
+            <div class="card">
+                <div class="card-body">
+                    <h4 class="card-title">Current service</h4>
+                    <h6 class="card-subtitle mb-2 text-muted">This instance info.</h6>
+                    <table class="table" style="margin-top: 30px">
+                        <tr>
+                            <th scope="row">Service name</th>
+                            <td><span class="badge badge-primary" style="font-size: 100%">{{.currentServiceName}}</span></td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Active instances</th>
+                            <td>{{.currentServiceInstances}}</td>
+                        </tr>
+                    </table>
+                    <a href="#" class="card-link">View more</a>
                 </div>
             </div>
         </div>
-        <div class="row" style="margin-top: 30px">
-            <div class="col-sm-12">
-                <div class="card">
-                    <div class="card-body">
-                        <h4 class="card-title">Service communication</h4>
-                        <h6 class="card-subtitle mb-2 text-muted">Communication relative to this instance.</h6>
-                        <table class="table" style="margin-top: 15px">
-                            <thead>
-                                <th>Destination service</th>
-                                <th>Requests last minute</th>
-                            </thead>
-                            {{range $serviceName, $count := .requests}}
-                            <tr>
-                                <td>{{$serviceName}}</td>
-                                <td>{{$count}}</td>
-                            </tr>
-                            {{end}}
-                        </table>
-                    </div>
+        <div class="col-sm-6">
+            <div class="card">
+                <div class="card-body">
+                    <h4 class="card-title">Current process</h4>
+                    <h6 class="card-subtitle mb-2 text-muted">Process info.</h6>
+                    <table class="table" style="margin-top: 30px">
+                        <tr>
+                            <th scope="row">Process ID</th>
+                            <td>{{.processId}}</td>
+                        </tr>
+                    </table>
                 </div>
             </div>
         </div>
-      </div>
+    </div>
+    <div class="row" style="margin-top: 30px">
+        <div class="col-sm-12">
+            <div class="card">
+                <div class="card-body">
+                    <h4 class="card-title">Service communication</h4>
+                    <h6 class="card-subtitle mb-2 text-muted">Communication relative to this instance.</h6>
+                    <table class="table" style="margin-top: 15px">
+                        <thead>
+                            <th>Destination service</th>
+                            <th>Requests last minute</th>
+                        </thead>
+                        {{range $serviceName, $count := .requests}}
+                        <tr>
+                            <td>{{$serviceName}}</td>
+                            <td>{{$count}}</td>
+                        </tr>
+                        {{end}}
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
 
-      <footer class="footer">
-        <p>Postman <b>0.1</b> Build <b>4f95</b></p>
-        </footer>
-    </div><!-- /.container -->
-
-
-    <!-- Bootstrap core JavaScript
-    ================================================== -->
-    <!-- Placed at the end of the document so the pages load faster -->
-    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.11.0/umd/popper.min.js" integrity="sha384-b/U6ypiBEHpOf/4+1nzFpr53nxSS+GLCkfwBdFNTxtclqqenISfwAzpKaMNFNmj4" crossorigin="anonymous"></script>
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/js/bootstrap.min.js" integrity="sha384-h0AbiXch4ZDo7tp9hKZ4TsHbi047NrKGLO3SEJAg45jXxnGIfYzk4Si90RDIqNm1" crossorigin="anonymous"></script>
-  </body>
-</html>
+    
+</div><!-- /.container -->
+{{template "footer.html" .}}

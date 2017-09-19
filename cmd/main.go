@@ -60,7 +60,7 @@ func main() {
 
 	// Start the dashboard service
 	if cmd.Config.GetBool("dashboard.enabled") {
-		dashboard.StartHTTPServer(cmd.Config.GetInt("dashboard.listen_port"), cmd.Config.GetViper())
+		dashboard.StartHTTPServer(cmd.Config.GetInt("dashboard.listen_port"), cmd.Config.GetViper(), Version, Build)
 		log.Infof("Dashboard HTTP server listening on 127.0.0.1:%d", cmd.Config.GetInt("dashboard.listen_port"))
 	}
 
