@@ -53,6 +53,7 @@ func SendRequestMessage(ch *amqp.Channel, serviceName string, request *protobuf.
 // SendMessageAndDiscardResponse does exactly the same as SendMessage but
 // it doesn't expect to get a response in any way.
 func SendMessageAndDiscardResponse(ch *amqp.Channel, serviceName string, request *protobuf.Request) *Error {
+	request.ResponseQueue = "" // No response queue when we don't need response.
 	queueName := buildRequestQueueName(serviceName)
 	setRequestIDIfEmpty(request)
 	if !queueExists(ch, queueName) {
@@ -123,8 +124,13 @@ func processMessageRequest(msg []byte) error {
 	} else {
 		response = &protobuf.Response{StatusCode: 501, RequestId: request.GetId()}
 	}
-	err := sendResponseMessage(request, response)
-	return err
+	// We'll send a response only if we have a response queue name
+	// if we don't have a queue, then it means we don't need to send a response back.
+	if request.GetResponseQueue() != "" {
+		err := sendResponseMessage(request, response)
+		return err
+	}
+	return nil
 }
 
 // When we're done processing the message and we already got a Response object
@@ -135,6 +141,7 @@ func sendResponseMessage(request *protobuf.Request, response *protobuf.Response)
 	if _err != nil {
 		return _err
 	}
+	defer ch.Close()
 	// Encode response struct.
 	message, err := proto.Marshal(response)
 	if err != nil {

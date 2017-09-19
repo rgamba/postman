@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -223,6 +224,13 @@ func TestServerDefaultHandlerHome(t *testing.T) {
 	assert.Equal(t, "hello world", body)
 }
 
+func TestServerDiscardResponse(t *testing.T) {
+	body, statusCode, err := _getRequestTestServerNoResponse("/test")
+	assert.Nil(t, err)
+	assert.Equal(t, 201, statusCode)
+	assert.Equal(t, "", body)
+}
+
 // Misc testing functions
 
 func _createMockServer() *http.Server {
@@ -268,12 +276,53 @@ func _getRequestServer(path string, port int) (string, int, error) {
 	return string(body), resp.StatusCode, nil
 }
 
+func _getRequestServerNoResponse(path string, port int) (string, int, error) {
+	if path == "" || path[0] != '/' {
+		path = "/" + path
+	}
+	url := fmt.Sprintf("http://localhost:%d%s", port, path)
+	resp, err := _getRequestServerWithHeaders(url, port, map[string]string{"Discard-Response": "Yes"}, "GET", "")
+	if err != nil {
+		return "", 0, err
+	}
+	defer resp.Body.Close()
+	body, _ := ioutil.ReadAll(resp.Body)
+	return string(body), resp.StatusCode, nil
+}
+
+func _getRequestServerWithHeaders(url string, port int, headers map[string]string, method string, reqBody string) (*http.Response, error) {
+	client := &http.Client{}
+	body := bytes.NewBuffer([]byte{})
+	if reqBody != "" {
+		body = bytes.NewBuffer([]byte(reqBody))
+	}
+	// Create request
+	request, err := http.NewRequest(method, url, body)
+	if err != nil {
+		return nil, err
+	}
+	// Add headers to request
+	for name, val := range headers {
+		request.Header.Add(name, val)
+	}
+	// Send and get the response
+	response, err := client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
 func _getRequestMockServer(path string) (string, int, error) {
 	return _getRequestServer(path, MockServerPort)
 }
 
 func _getRequestTestServer(path string) (string, int, error) {
 	return _getRequestServer(path, TestServerPort)
+}
+
+func _getRequestTestServerNoResponse(path string) (string, int, error) {
+	return _getRequestServerNoResponse(path, TestServerPort)
 }
 
 func _postRequestMockServer(path string, values url.Values) (string, error) {
