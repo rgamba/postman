@@ -87,5 +87,47 @@ make
 make install
 ```
 
+# API
+
+## Send an HTTP request
+
+To send an HTTP request to any service, the only thing you need to know is
+the server name identifier. This is a unique name. That's it. No IPs or hostnames needed
+to remember. You need to send all requests to the local **postman** which will typically
+be running in the instance's `http://localhost:8130/<servicename>/`
+
+Suppose there is a service called **user-data** that exposes a POST endpoint `/:user_id/update`
+and accepts the following JSON body:
+
+```
+{
+    "name": "new name",
+    "last_name": "new last name"
+}
+```
+
+To reach this endpoint on **user-data** from any other service on the network, we just need to:
+(User id: 123)
+
+```bash
+curl -X POST -d '{"name": "new name", "last_name": "new last name"}' http://localhost:8130/user-data/123/update
+```
+
+That's it!
+
+## Discarding a response
+
+Sometimes we need to send a request that will take a long time to complete, therefore it is not practical
+to wait for the response right away. On those cases we just need to discard the response by sending the
+following HTTP header on the request:
+
+```
+Discard-Response: Yes
+```
+
+The response will always be an immediate HTTP response with `201` status code and no body.
+
+
+
 
 
