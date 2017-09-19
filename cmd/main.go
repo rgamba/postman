@@ -6,6 +6,7 @@ import (
 
 	"github.com/rgamba/postman/async"
 	"github.com/rgamba/postman/async/protobuf"
+	"github.com/rgamba/postman/dashboard"
 	"github.com/rgamba/postman/proxy"
 
 	log "github.com/sirupsen/logrus"
@@ -55,6 +56,13 @@ func main() {
 	if cmd.isVerbose2() {
 		log.Infof("HTTP proxy server listening on 127.0.0.1:%d", cmd.Config.GetInt("http.listen_port"))
 	}
+
+	// Start the dashboard service
+	if cmd.Config.GetBool("dashboard.enabled") {
+		dashboard.StartHTTPServer(cmd.Config.GetInt("dashboard.listen_port"))
+		log.Infof("Dashboard HTTP server listening on 127.0.0.1:%d", cmd.Config.GetInt("dashboard.listen_port"))
+	}
+
 	c := make(chan bool)
 	<-c
 }

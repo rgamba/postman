@@ -62,6 +62,11 @@ func (conf *config) GetInt(key string) int {
 	return conf.viper.GetInt(key)
 }
 
+// GetInt gets the corresponding config for the key as an bool.
+func (conf *config) GetBool(key string) bool {
+	return conf.viper.GetBool(key)
+}
+
 // GetStringSlice gets the config as a string slice.
 func (conf *config) GetStringSlice(key string) []string {
 	return conf.viper.GetStringSlice(key)

@@ -1,2 +1,3 @@
 build/**
 cmd/debug
+.vscode/**
