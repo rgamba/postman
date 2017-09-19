@@ -5,6 +5,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/rgamba/postman/async/protobuf"
+	"github.com/rgamba/postman/stats"
 	"github.com/streadway/amqp"
 	"github.com/twinj/uuid"
 )
@@ -48,6 +49,7 @@ func SendRequestMessage(ch *amqp.Channel, serviceName string, request *protobuf.
 	}
 	// Save the request in the request queue.
 	appendRequest(request, onResponse)
+	go stats.RecordRequest(serviceName)
 }
 
 // SendMessageAndDiscardResponse does exactly the same as SendMessage but
@@ -69,6 +71,7 @@ func SendMessageAndDiscardResponse(ch *amqp.Channel, serviceName string, request
 	if err != nil {
 		return err
 	}
+	go stats.RecordRequest(serviceName)
 	return nil
 }
 

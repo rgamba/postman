@@ -28,6 +28,10 @@ func initConfig(configFile string) (*config, error) {
 	return conf, nil
 }
 
+func (conf *config) GetViper() *viper.Viper {
+	return conf.viper
+}
+
 func (conf *config) setConfigDefaults() {
 	// Broker
 	conf.viper.SetDefault("broker.uri", "amqp://guest:guest@localhost:5672")

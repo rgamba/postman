@@ -191,9 +191,14 @@ func sendHTTPResponseFromProtobufResponse(w http.ResponseWriter, resp *protobuf.
 		parts := strings.Split(header, ":")
 		w.Header().Set(parts[0], parts[1])
 	}
+	addRequestIDToHTTPResponse(w, resp)
 	// Status code and body
 	w.WriteHeader(int(resp.StatusCode))
 	w.Write([]byte(resp.GetBody()))
+}
+
+func addRequestIDToHTTPResponse(w http.ResponseWriter, resp *protobuf.Response) {
+	w.Header().Set("Postman-Id", resp.GetRequestId())
 }
 
 func createResponseError(err interface{}) map[string]string {

@@ -8,6 +8,7 @@ import (
 	"github.com/rgamba/postman/async/protobuf"
 	"github.com/rgamba/postman/dashboard"
 	"github.com/rgamba/postman/proxy"
+	"github.com/rgamba/postman/stats"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -59,9 +60,12 @@ func main() {
 
 	// Start the dashboard service
 	if cmd.Config.GetBool("dashboard.enabled") {
-		dashboard.StartHTTPServer(cmd.Config.GetInt("dashboard.listen_port"))
+		dashboard.StartHTTPServer(cmd.Config.GetInt("dashboard.listen_port"), cmd.Config.GetViper())
 		log.Infof("Dashboard HTTP server listening on 127.0.0.1:%d", cmd.Config.GetInt("dashboard.listen_port"))
 	}
+
+	// Stats module needs to purge data periodically.
+	stats.AutoPurgeOldEvents()
 
 	c := make(chan bool)
 	<-c

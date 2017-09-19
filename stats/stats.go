@@ -3,6 +3,8 @@ package stats
 import (
 	"sync"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // Event is just a stat event.
@@ -44,8 +46,16 @@ func CountRequestsLastMinute(service string) (count int) {
 	return count
 }
 
+func GetRequestsLastMinutePerService() map[string]int {
+	result := map[string]int{}
+	for serviceName, _ := range serviceRequests {
+		result[serviceName] = CountRequestsLastMinute(serviceName)
+	}
+	return result
+}
+
 func isLessThanOneMinuteOld(event Event) bool {
-	if event.Timestamp < (time.Now().Unix() - 60) {
+	if event.Timestamp > (time.Now().Unix() - 60) {
 		return true
 	}
 	return false
@@ -61,10 +71,18 @@ func getServiceRequests(service string) []Event {
 	return events
 }
 
-// PurgeOldEvents will be used as a means to
+// AutoPurgeOldEvents will be used as a means to
 // periodically delete old events and prevent high memory
 // utilization for the stats.
-func PurgeOldEvents() {
+func AutoPurgeOldEvents() {
+	go func() {
+		time.Sleep(1 * time.Minute)
+		log.Debug("Purging old events")
+		purgeOldEvents()
+	}()
+}
+
+func purgeOldEvents() {
 	for service, events := range serviceRequests {
 		for i, event := range events {
 			if isOldEvent(event) {
@@ -82,7 +100,7 @@ func deleteEvent(service string, index int) {
 
 func isOldEvent(event Event) bool {
 	var threshold int64
-	threshold = 60 * 60 // 1 hour
+	threshold = 60 * 10 // 10 minutes.
 	if event.Timestamp < (time.Now().Unix() - threshold) {
 		return true
 	}

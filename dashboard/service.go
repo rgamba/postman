@@ -5,10 +5,19 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"os"
+
+	"github.com/rgamba/postman/async"
+	"github.com/rgamba/postman/stats"
+
+	"github.com/spf13/viper"
 )
 
+var appConfig *viper.Viper
+
 // StartHTTPServer starts the new HTTP Dashboard service.
-func StartHTTPServer(port int) *http.Server {
+func StartHTTPServer(port int, config *viper.Viper) *http.Server {
+	appConfig = config
 	mux := http.NewServeMux()
 	mux.HandleFunc("/stats/messages", messageStatsHandler)
 	mux.HandleFunc("/", defaultHandler)
@@ -32,7 +41,13 @@ func messageStatsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func defaultHandler(w http.ResponseWriter, r *http.Request) {
-	renderView(w, "index.html", nil)
+	context := map[string]interface{}{
+		"currentServiceName":      appConfig.GetString("service.name"),
+		"currentServiceInstances": async.GetServiceInstances(appConfig.GetString("service.name")),
+		"processId":               os.Getpid(),
+		"requests":                stats.GetRequestsLastMinutePerService(),
+	}
+	renderView(w, "index.html", context)
 }
 
 func renderView(w http.ResponseWriter, tpl string, data interface{}) {

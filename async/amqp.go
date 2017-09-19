@@ -232,3 +232,19 @@ func createInvalidQueueNameError(queueName string) *Error {
 		},
 	)
 }
+
+// GetServiceInstances returns the number of consumers of a given request
+// queue on the AMQP server. In other words that means the number of instances
+// available for that given service.
+func GetServiceInstances(serviceName string) int {
+	ch, err := conn.Channel()
+	if err != nil {
+		return 0
+	}
+	queueName := buildRequestQueueName(serviceName)
+	queue, err := ch.QueueInspect(queueName)
+	if err != nil {
+		return 0
+	}
+	return queue.Consumers
+}

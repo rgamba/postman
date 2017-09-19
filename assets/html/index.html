@@ -20,6 +20,12 @@
             padding-left: 3px;
             padding-right: 3px;
         }
+        .footer {
+            margin-top: 35px;
+            padding-top: 1.5rem;
+            color: #777;
+            border-top: .05rem solid #e6e6e6;
+          }
     </style>
   </head>
 
@@ -62,11 +68,11 @@
                         <table class="table" style="margin-top: 30px">
                             <tr>
                                 <th scope="row">Service name</th>
-                                <td><span class="badge badge-primary" style="font-size: 100%">service-test</span></td>
+                                <td><span class="badge badge-primary" style="font-size: 100%">{{.currentServiceName}}</span></td>
                             </tr>
                             <tr>
                                 <th scope="row">Active instances</th>
-                                <td>10</td>
+                                <td>{{.currentServiceInstances}}</td>
                             </tr>
                         </table>
                         <a href="#" class="card-link">View more</a>
@@ -76,19 +82,14 @@
             <div class="col-sm-6">
                 <div class="card">
                     <div class="card-body">
-                        <h4 class="card-title">Current service</h4>
-                        <h6 class="card-subtitle mb-2 text-muted">This instance info.</h6>
+                        <h4 class="card-title">Current process</h4>
+                        <h6 class="card-subtitle mb-2 text-muted">Process info.</h6>
                         <table class="table" style="margin-top: 30px">
                             <tr>
-                                <th scope="row">Service name</th>
-                                <td><span class="badge badge-primary" style="font-size: 100%">service-test</span></td>
-                            </tr>
-                            <tr>
-                                <th scope="row">Active instances</th>
-                                <td>10</td>
+                                <th scope="row">Process ID</th>
+                                <td>{{.processId}}</td>
                             </tr>
                         </table>
-                        <a href="#" class="card-link">View more</a>
                     </div>
                 </div>
             </div>
@@ -104,14 +105,12 @@
                                 <th>Destination service</th>
                                 <th>Requests last minute</th>
                             </thead>
+                            {{range $serviceName, $count := .requests}}
                             <tr>
-                                <td>service-a</td>
-                                <td>0</td>
+                                <td>{{$serviceName}}</td>
+                                <td>{{$count}}</td>
                             </tr>
-                            <tr>
-                                <td>service-b</td>
-                                <td>0</td>
-                            </tr>
+                            {{end}}
                         </table>
                     </div>
                 </div>
@@ -119,6 +118,9 @@
         </div>
       </div>
 
+      <footer class="footer">
+        <p>Postman <b>0.1</b> Build <b>4f95</b></p>
+        </footer>
     </div><!-- /.container -->
 
 
