@@ -105,6 +105,7 @@ func convertHTTPResponseToProtoResponse(response *http.Response) (*protobuf.Resp
 
 // We got an outgoing request. defaultHandler will marshall the http request
 // and convert it to a protobuf.Response and then send it via the async package.
+// TODO: We need to break this large function apart.
 func defaultHandler(w http.ResponseWriter, r *http.Request) {
 	ch, err := async.CreateNewChannel()
 	if err != nil {
@@ -134,6 +135,18 @@ func defaultHandler(w http.ResponseWriter, r *http.Request) {
 		}, 400)
 		return
 	}
+	// Check if the request needs a response or we can discard the response.
+	if requestWantsToDiscardResponse(r) {
+		// The request doesn't need us to wait for a response, then we'll just
+		// send the response and send back a 201 - Created status code.
+		err := async.SendMessageAndDiscardResponse(ch, serviceName, request)
+		var resp *protobuf.Response
+		if err == nil {
+			resp = &protobuf.Response{StatusCode: 201, Body: ""}
+		}
+		sendHTTPResponseFromProtobufResponse(w, resp, err)
+		return
+	}
 	// As the response is async we'll need to sync processes.
 	c := make(chan bool)
 	// Send the message via async and get back a response
@@ -148,6 +161,20 @@ func defaultHandler(w http.ResponseWriter, r *http.Request) {
 	case <-time.After(15 * time.Second):
 		sendJSON(w, createResponseError("timeout"), http.StatusInternalServerError)
 	}
+}
+
+func requestWantsToDiscardResponse(request *http.Request) bool {
+	header := getHeaderValue("Discard-Response", request.Header)
+	return strings.ToUpper(header) == "YES"
+}
+
+func getHeaderValue(headerName string, headers http.Header) string {
+	for header, values := range headers {
+		if strings.ToUpper(header) == strings.ToUpper(headerName) {
+			return strings.Join(values, "; ")
+		}
+	}
+	return ""
 }
 
 func sendHTTPResponseFromProtobufResponse(w http.ResponseWriter, resp *protobuf.Response, err *async.Error) {

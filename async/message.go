@@ -28,9 +28,7 @@ type requestRecord struct {
 // SendRequestMessage sends a new request message through
 // the AMQP server to the appropriate
 func SendRequestMessage(ch *amqp.Channel, serviceName string, request *protobuf.Request, onResponse func(*protobuf.Response, *Error)) {
-	// The queue name of the destination service.
-	// Don't confuse this one for getRequestQueueName().
-	queueName := fmt.Sprintf("postman.req.%s", serviceName)
+	queueName := buildRequestQueueName(serviceName)
 	setRequestIDIfEmpty(request)
 	if !queueExists(ch, queueName) {
 		go onResponse(nil, createInvalidQueueNameError(queueName))
@@ -50,6 +48,34 @@ func SendRequestMessage(ch *amqp.Channel, serviceName string, request *protobuf.
 	}
 	// Save the request in the request queue.
 	appendRequest(request, onResponse)
+}
+
+// SendMessageAndDiscardResponse does exactly the same as SendMessage but
+// it doesn't expect to get a response in any way.
+func SendMessageAndDiscardResponse(ch *amqp.Channel, serviceName string, request *protobuf.Request) *Error {
+	request.ResponseQueue = "" // No response queue when we don't need response.
+	queueName := buildRequestQueueName(serviceName)
+	setRequestIDIfEmpty(request)
+	if !queueExists(ch, queueName) {
+		return createInvalidQueueNameError(queueName)
+	}
+	// Encode message.
+	message, _err := proto.Marshal(request)
+	if _err != nil {
+		return createError("unexpected", _err.Error(), nil)
+	}
+	// Send it!
+	err := publishMessage(ch, message, queueName)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// The queue name of the destination service.
+// Don't confuse this one for getRequestQueueName().
+func buildRequestQueueName(serviceName string) string {
+	return fmt.Sprintf("postman.req.%s", serviceName)
 }
 
 func setRequestIDIfEmpty(request *protobuf.Request) {
@@ -98,8 +124,13 @@ func processMessageRequest(msg []byte) error {
 	} else {
 		response = &protobuf.Response{StatusCode: 501, RequestId: request.GetId()}
 	}
-	err := sendResponseMessage(request, response)
-	return err
+	// We'll send a response only if we have a response queue name
+	// if we don't have a queue, then it means we don't need to send a response back.
+	if request.GetResponseQueue() != "" {
+		err := sendResponseMessage(request, response)
+		return err
+	}
+	return nil
 }
 
 // When we're done processing the message and we already got a Response object
@@ -110,6 +141,7 @@ func sendResponseMessage(request *protobuf.Request, response *protobuf.Response)
 	if _err != nil {
 		return _err
 	}
+	defer ch.Close()
 	// Encode response struct.
 	message, err := proto.Marshal(response)
 	if err != nil {

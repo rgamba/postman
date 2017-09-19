@@ -174,6 +174,16 @@ func TestSendMessageWhenClosedChannel(t *testing.T) {
 	<-c
 }
 
+func TestSendMessageAndDiscardResponse(t *testing.T) {
+	_connect()
+	defer _close_connection()
+	_createQueue("postman.req.service1")
+	ch, _ := conn.Channel()
+	req := &protobuf.Request{Body: "test", Method: "GET", ResponseQueue: "responsequeue"}
+	err := SendMessageAndDiscardResponse(ch, "service1", req)
+	assert.Nil(t, err)
+}
+
 // Misc functions
 
 func _queueExists(queueName string) bool {
