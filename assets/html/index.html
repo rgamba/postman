@@ -1,0 +1,88 @@
+{{template "header.html" .}}
+<div class="container">
+
+    <div class="starter-template">
+    <h1>Dashboard</h1>
+
+    <div class="row" style="margin-top: 40px">
+        <div class="col-sm-6">
+            <div class="card">
+                <div class="card-body">
+                    <h4 class="card-title">Current service</h4>
+                    <h6 class="card-subtitle mb-2 text-muted">This instance info.</h6>
+                    <table class="table" style="margin-top: 30px">
+                        <tr>
+                            <th scope="row">Service name</th>
+                            <td><span class="badge badge-primary" style="font-size: 100%">{{.currentServiceName}}</span></td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Active instances</th>
+                            <td>{{.currentServiceInstances}}</td>
+                        </tr>
+                    </table>
+                    <a href="#" class="card-link">View more</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6">
+            <div class="card">
+                <div class="card-body">
+                    <h4 class="card-title">Current process</h4>
+                    <h6 class="card-subtitle mb-2 text-muted">Process info.</h6>
+                    <table class="table" style="margin-top: 30px">
+                        <tr>
+                            <th scope="row">Process ID</th>
+                            <td>{{.processId}}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row" style="margin-top: 30px">
+        <div class="col-sm-6">
+            <div class="card">
+                <div class="card-body">
+                    <h4 class="card-title">Incomming requests</h4>
+                    <h6 class="card-subtitle mb-2 text-muted">Communication relative to this instance.</h6>
+                    <table class="table" style="margin-top: 15px">
+                        <thead>
+                            <th>Requesting service</th>
+                            <th>Requests last minute</th>
+                        </thead>
+                        {{range $serviceName, $count := .incomingRequests}}
+                        <tr>
+                            <td>{{$serviceName}}</td>
+                            <td>{{$count}}</td>
+                        </tr>
+                        {{end}}
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6">
+            <div class="card">
+                <div class="card-body">
+                    <h4 class="card-title">Outgoing requests</h4>
+                    <h6 class="card-subtitle mb-2 text-muted">Communication relative to this instance.</h6>
+                    <table class="table" style="margin-top: 15px">
+                        <thead>
+                            <th>Destination service</th>
+                            <th>Requests last minute</th>
+                        </thead>
+                        {{range $serviceName, $count := .outgoingRequests}}
+                        <tr>
+                            <td>{{$serviceName}}</td>
+                            <td>{{$count}}</td>
+                        </tr>
+                        {{end}}
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+
+    
+</div><!-- /.container -->
+{{template "footer.html" .}}

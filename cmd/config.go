@@ -28,6 +28,10 @@ func initConfig(configFile string) (*config, error) {
 	return conf, nil
 }
 
+func (conf *config) GetViper() *viper.Viper {
+	return conf.viper
+}
+
 func (conf *config) setConfigDefaults() {
 	// Broker
 	conf.viper.SetDefault("broker.uri", "amqp://guest:guest@localhost:5672")
@@ -60,6 +64,11 @@ func (conf *config) GetString(key string) string {
 // GetInt gets the corresponding config for the key as an int.
 func (conf *config) GetInt(key string) int {
 	return conf.viper.GetInt(key)
+}
+
+// GetInt gets the corresponding config for the key as an bool.
+func (conf *config) GetBool(key string) bool {
+	return conf.viper.GetBool(key)
 }
 
 // GetStringSlice gets the config as a string slice.

@@ -6,7 +6,9 @@ import (
 
 	"github.com/rgamba/postman/async"
 	"github.com/rgamba/postman/async/protobuf"
+	"github.com/rgamba/postman/dashboard"
 	"github.com/rgamba/postman/proxy"
+	"github.com/rgamba/postman/stats"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -55,6 +57,16 @@ func main() {
 	if cmd.isVerbose2() {
 		log.Infof("HTTP proxy server listening on 127.0.0.1:%d", cmd.Config.GetInt("http.listen_port"))
 	}
+
+	// Start the dashboard service
+	if cmd.Config.GetBool("dashboard.enabled") {
+		dashboard.StartHTTPServer(cmd.Config.GetInt("dashboard.listen_port"), cmd.Config.GetViper(), Version, Build)
+		log.Infof("Dashboard HTTP server listening on 127.0.0.1:%d", cmd.Config.GetInt("dashboard.listen_port"))
+	}
+
+	// Stats module needs to purge data periodically.
+	stats.AutoPurgeOldEvents()
+
 	c := make(chan bool)
 	<-c
 }
@@ -62,15 +74,15 @@ func main() {
 func enableLogForRequestAndResponse(a *app) {
 	async.OnNewRequest = func(req protobuf.Request) {
 		log.WithFields(log.Fields{
-			"endpoint":   req.GetEndpoint(),
-			"method":     req.GetMethod(),
-			"request_id": req.GetId(),
+			"endpoint":   req.Endpoint,
+			"method":     req.Method,
+			"request_id": req.Id,
 		}).Debug("Incoming request")
 	}
 	async.OnNewResponse = func(resp protobuf.Response) {
 		log.WithFields(log.Fields{
-			"status_code": resp.GetStatusCode(),
-			"request_id":  resp.GetRequestId(),
+			"status_code": resp.StatusCode,
+			"request_id":  resp.RequestId,
 		}).Debug("Incoming response")
 	}
 }

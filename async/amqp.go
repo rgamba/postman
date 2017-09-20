@@ -67,6 +67,11 @@ func GetResponseQueueName() string {
 	return responseQueueName
 }
 
+// GetServiceName doesn't need description.
+func GetServiceName() string {
+	return serviceName
+}
+
 // CreateNewChannel is used to create new channels.
 // This func is intended for use outside of this package, for example
 // in the proxy package, it will create one channel per http request.
@@ -231,4 +236,20 @@ func createInvalidQueueNameError(queueName string) *Error {
 			"queue_name": queueName,
 		},
 	)
+}
+
+// GetServiceInstances returns the number of consumers of a given request
+// queue on the AMQP server. In other words that means the number of instances
+// available for that given service.
+func GetServiceInstances(serviceName string) int {
+	ch, err := conn.Channel()
+	if err != nil {
+		return 0
+	}
+	queueName := buildRequestQueueName(serviceName)
+	queue, err := ch.QueueInspect(queueName)
+	if err != nil {
+		return 0
+	}
+	return queue.Consumers
 }
