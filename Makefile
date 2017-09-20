@@ -6,9 +6,16 @@ BUILD=`git rev-parse HEAD | head -c 8`
 LDFLAGS="-X main.Version=${VERSION} -X main.Build=${BUILD}"
 
 .PHONY: build
-build:
+build: generate
 	@echo "==> Building"
+	@go generate dashboard/*.go
 	@go build -ldflags ${LDFLAGS} -o build/${BINARY} cmd/*.go
+	@echo "\n==>\033[32m Ok\033[m\n"
+
+.PHONY: generate
+generate:
+	@echo "==> Generating"
+	@go generate dashboard/*.go
 	@echo "\n==>\033[32m Ok\033[m\n"
 
 .PHONY: release
