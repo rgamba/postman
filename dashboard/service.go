@@ -1,8 +1,10 @@
 package dashboard
 
 import (
+	"bytes"
 	"fmt"
 	"html/template"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -42,6 +44,21 @@ func StartHTTPServer(port int, config *viper.Viper, version string, build string
 	return srv
 }
 
+//go:generate go-bindata -prefix "assets/" -pkg dashboard -o bindata.go ../assets/...
+
+func staticHandler(rw http.ResponseWriter, req *http.Request) {
+	var path string = req.URL.Path
+	if path == "" {
+		path = "index.html"
+	}
+	if bs, err := Asset(path); err != nil {
+		rw.WriteHeader(http.StatusNotFound)
+	} else {
+		var reader = bytes.NewBuffer(bs)
+		io.Copy(rw, reader)
+	}
+}
+
 func settingsHandler(w http.ResponseWriter, r *http.Request) {
 	context := map[string]interface{}{
 		"service":   appConfig.GetStringMap("service"),
@@ -71,11 +88,23 @@ func renderView(w http.ResponseWriter, tpl string, data interface{}) {
 		}
 	}()
 
-	root := "assets/html/"
-	t := template.Must(template.ParseFiles(root+tpl, root+"header.html", root+"footer.html"))
+	header := string(getStaticAsset("../assets/html/header.html"))
+	footer := string(getStaticAsset("../assets/html/footer.html"))
+
+	t := template.New("main")
+	tpl = header + string(getStaticAsset("../assets/html/index.html")) + footer
+	t.Parse(string(tpl))
 
 	err := t.Execute(w, data)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+func getStaticAsset(name string) (bs []byte) {
+	var err error
+	if bs, err = Asset(name); err != nil {
+		return nil
+	}
+	return bs
 }
