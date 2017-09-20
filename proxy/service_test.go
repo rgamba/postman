@@ -102,7 +102,7 @@ func TestConvertHTTPResponseToProtoResponse(t *testing.T) {
 	protoresp, err := convertHTTPResponseToProtoResponse(resp)
 	assert.NoError(t, err)
 	assert.Equal(t, int(protoresp.StatusCode), resp.StatusCode)
-	assert.Equal(t, protoresp.GetBody(), "one")
+	assert.Equal(t, protoresp.Body, "one")
 	assert.Equal(t, len(protoresp.Headers), len(resp.Header))
 }
 

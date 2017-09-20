@@ -67,6 +67,11 @@ func GetResponseQueueName() string {
 	return responseQueueName
 }
 
+// GetServiceName doesn't need description.
+func GetServiceName() string {
+	return serviceName
+}
+
 // CreateNewChannel is used to create new channels.
 // This func is intended for use outside of this package, for example
 // in the proxy package, it will create one channel per http request.

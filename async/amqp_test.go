@@ -52,7 +52,7 @@ func TestConsumeFromRequestQueue(t *testing.T) {
 	defer _close_connection()
 	c := make(chan bool)
 	OnNewRequest = func(req protobuf.Request) {
-		assert.Equal(t, "test", req.GetBody())
+		assert.Equal(t, "test", req.Body)
 		c <- true
 	}
 	request := &protobuf.Request{Body: "test"}
@@ -104,16 +104,16 @@ func TestSendMessage(t *testing.T) {
 	_consumeQueue("postman.req.service1", func(msg []byte) {
 		req := &protobuf.Request{}
 		proto.Unmarshal(msg, req)
-		response := &protobuf.Response{Body: "testresponse", RequestId: req.GetId()}
+		response := &protobuf.Response{Body: "testresponse", RequestId: req.Id}
 		respMsg, _ := proto.Marshal(response)
-		_publishMessage(respMsg, req.GetResponseQueue())
+		_publishMessage(respMsg, req.ResponseQueue)
 	})
 	c := make(chan bool)
 	ch, _ := conn.Channel()
 	req := &protobuf.Request{Body: "test", Method: "GET", ResponseQueue: responseQueueName}
 	SendRequestMessage(ch, "service1", req, func(resp *protobuf.Response, err *Error) {
 		assert.Nil(t, err)
-		assert.Equal(t, "testresponse", resp.GetBody())
+		assert.Equal(t, "testresponse", resp.Body)
 		c <- true
 	})
 	<-c
@@ -126,9 +126,9 @@ func TestSendMessageParallelCalls(t *testing.T) {
 	_consumeQueue("postman.req.service1", func(msg []byte) {
 		req := &protobuf.Request{}
 		proto.Unmarshal(msg, req)
-		response := &protobuf.Response{Body: req.GetBody(), RequestId: req.GetId()}
+		response := &protobuf.Response{Body: req.Body, RequestId: req.Id}
 		respMsg, _ := proto.Marshal(response)
-		_publishMessage(respMsg, req.GetResponseQueue())
+		_publishMessage(respMsg, req.ResponseQueue)
 	})
 	var wait sync.WaitGroup
 	for i := 0; i <= 100; i++ {
@@ -139,7 +139,7 @@ func TestSendMessageParallelCalls(t *testing.T) {
 			SendRequestMessage(ch, "service1", req, func(resp *protobuf.Response, err *Error) {
 				expectedBody := fmt.Sprintf("%d", i)
 				assert.Nil(t, err)
-				assert.Equal(t, expectedBody, resp.GetBody())
+				assert.Equal(t, expectedBody, resp.Body)
 				wait.Done()
 			})
 		}(i)
