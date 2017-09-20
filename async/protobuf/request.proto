@@ -8,4 +8,5 @@ message Request {
     repeated string headers = 4;
     string response_queue = 5;
     string body = 6;
+    string service = 7;
 }

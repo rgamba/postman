@@ -40,17 +40,37 @@
         </div>
     </div>
     <div class="row" style="margin-top: 30px">
-        <div class="col-sm-12">
+        <div class="col-sm-6">
             <div class="card">
                 <div class="card-body">
-                    <h4 class="card-title">Service communication</h4>
+                    <h4 class="card-title">Incomming requests</h4>
+                    <h6 class="card-subtitle mb-2 text-muted">Communication relative to this instance.</h6>
+                    <table class="table" style="margin-top: 15px">
+                        <thead>
+                            <th>Requesting service</th>
+                            <th>Requests last minute</th>
+                        </thead>
+                        {{range $serviceName, $count := .incomingRequests}}
+                        <tr>
+                            <td>{{$serviceName}}</td>
+                            <td>{{$count}}</td>
+                        </tr>
+                        {{end}}
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6">
+            <div class="card">
+                <div class="card-body">
+                    <h4 class="card-title">Outgoing requests</h4>
                     <h6 class="card-subtitle mb-2 text-muted">Communication relative to this instance.</h6>
                     <table class="table" style="margin-top: 15px">
                         <thead>
                             <th>Destination service</th>
                             <th>Requests last minute</th>
                         </thead>
-                        {{range $serviceName, $count := .requests}}
+                        {{range $serviceName, $count := .outgoingRequests}}
                         <tr>
                             <td>{{$serviceName}}</td>
                             <td>{{$count}}</td>

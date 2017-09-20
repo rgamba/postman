@@ -74,15 +74,15 @@ func main() {
 func enableLogForRequestAndResponse(a *app) {
 	async.OnNewRequest = func(req protobuf.Request) {
 		log.WithFields(log.Fields{
-			"endpoint":   req.GetEndpoint(),
-			"method":     req.GetMethod(),
-			"request_id": req.GetId(),
+			"endpoint":   req.Endpoint,
+			"method":     req.Method,
+			"request_id": req.Id,
 		}).Debug("Incoming request")
 	}
 	async.OnNewResponse = func(resp protobuf.Response) {
 		log.WithFields(log.Fields{
-			"status_code": resp.GetStatusCode(),
-			"request_id":  resp.GetRequestId(),
+			"status_code": resp.StatusCode,
+			"request_id":  resp.RequestId,
 		}).Debug("Incoming response")
 	}
 }

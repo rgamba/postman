@@ -49,7 +49,7 @@ func SendRequestMessage(ch *amqp.Channel, serviceName string, request *protobuf.
 	}
 	// Save the request in the request queue.
 	appendRequest(request, onResponse)
-	go stats.RecordRequest(serviceName)
+	go stats.RecordRequest(serviceName, stats.Outgoing)
 }
 
 // SendMessageAndDiscardResponse does exactly the same as SendMessage but
@@ -71,7 +71,7 @@ func SendMessageAndDiscardResponse(ch *amqp.Channel, serviceName string, request
 	if err != nil {
 		return err
 	}
-	go stats.RecordRequest(serviceName)
+	go stats.RecordRequest(serviceName, stats.Outgoing)
 	return nil
 }
 
@@ -82,7 +82,7 @@ func buildRequestQueueName(serviceName string) string {
 }
 
 func setRequestIDIfEmpty(request *protobuf.Request) {
-	if request.GetId() == "" {
+	if request.Id == "" {
 		uniqid := uuid.NewV4()
 		request.Id = fmt.Sprintf("%s", uniqid)
 	}
@@ -116,6 +116,8 @@ func processMessageRequest(msg []byte) error {
 	if OnNewRequest != nil {
 		go OnNewRequest(*request)
 	}
+	// Record incomming request
+	go stats.RecordRequest(request.Service, stats.Incoming)
 
 	var response *protobuf.Response
 	if ResponseMiddleware != nil {
@@ -125,11 +127,11 @@ func processMessageRequest(msg []byte) error {
 			return err
 		}
 	} else {
-		response = &protobuf.Response{StatusCode: 501, RequestId: request.GetId()}
+		response = &protobuf.Response{StatusCode: 501, RequestId: request.Id}
 	}
 	// We'll send a response only if we have a response queue name
 	// if we don't have a queue, then it means we don't need to send a response back.
-	if request.GetResponseQueue() != "" {
+	if request.ResponseQueue != "" {
 		err := sendResponseMessage(request, response)
 		return err
 	}
@@ -151,7 +153,7 @@ func sendResponseMessage(request *protobuf.Request, response *protobuf.Response)
 		return err
 	}
 	// Send through the response queue.
-	_err = publishMessage(ch, message, request.GetResponseQueue())
+	_err = publishMessage(ch, message, request.ResponseQueue)
 	if _err != nil {
 		return _err
 	}
@@ -162,12 +164,12 @@ func sendResponseMessage(request *protobuf.Request, response *protobuf.Response)
 // If a match is found (normally this will be the case), we'll call the callback
 // function that was passed along with the original request.
 func matchResponseAndSendCallback(response *protobuf.Response) error {
-	requestRecord := getResponseRequest(response.GetRequestId())
+	requestRecord := getResponseRequest(response.RequestId)
 	if requestRecord == nil {
-		return fmt.Errorf("Unable to find matching request for '%s'", response.GetRequestId())
+		return fmt.Errorf("Unable to find matching request for '%s'", response.RequestId)
 	}
 	requestRecord.onResponse(response, nil)
-	removeRequest(response.GetRequestId())
+	removeRequest(response.RequestId)
 	return nil
 }
 
@@ -177,7 +179,7 @@ func appendRequest(request *protobuf.Request, onResponse func(*protobuf.Response
 		onResponse: onResponse,
 	}
 	mutex.Lock()
-	requests[req.request.GetId()] = req
+	requests[req.request.Id] = req
 	mutex.Unlock()
 }
 

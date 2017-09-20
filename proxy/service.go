@@ -2,16 +2,15 @@ package proxy
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/rgamba/postman/async"
 	"github.com/rgamba/postman/async/protobuf"
+	"github.com/rgamba/postman/lib"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -52,7 +51,7 @@ func forwardRequestAndCreateResponse(req *protobuf.Request) (*protobuf.Response,
 	if err != nil {
 		return nil, err
 	}
-	resp.RequestId = req.GetId()
+	resp.RequestId = req.Id
 	return resp, nil
 }
 
@@ -65,19 +64,19 @@ func forwardRequestCall(req *protobuf.Request) (*http.Response, error) {
 	if forwardHost[len(forwardHost)-1] == '/' {
 		forwardHost = forwardHost[:len(forwardHost)-1]
 	}
-	endpoint := fmt.Sprintf("%s%s", forwardHost, req.GetEndpoint())
+	endpoint := fmt.Sprintf("%s%s", forwardHost, req.Endpoint)
 	// Create request body
 	body := bytes.NewBuffer([]byte{})
-	if req.GetBody() != "" {
-		body = bytes.NewBuffer([]byte(req.GetBody()))
+	if req.Body != "" {
+		body = bytes.NewBuffer([]byte(req.Body))
 	}
 	// Create request
-	request, err := http.NewRequest(req.GetMethod(), endpoint, body)
+	request, err := http.NewRequest(req.Method, endpoint, body)
 	if err != nil {
 		return nil, err
 	}
 	// Add headers to request
-	for _, header := range req.GetHeaders() {
+	for _, header := range req.Headers {
 		parts := strings.Split(header, ":")
 		request.Header.Add(parts[0], parts[1])
 	}
@@ -125,6 +124,7 @@ func defaultHandler(w http.ResponseWriter, r *http.Request) {
 		Body:          string(body),
 		Endpoint:      getPathWithoutServiceName(r.URL.Path),
 		ResponseQueue: async.GetResponseQueueName(),
+		Service:       async.GetServiceName(),
 	}
 	serviceName := getServiceNameFromPath(r.URL.Path)
 	if serviceName == "" {
@@ -187,18 +187,18 @@ func sendHTTPResponseFromProtobufResponse(w http.ResponseWriter, resp *protobuf.
 		return
 	}
 	// Add headers
-	for _, header := range resp.GetHeaders() {
+	for _, header := range resp.Headers {
 		parts := strings.Split(header, ":")
 		w.Header().Set(parts[0], parts[1])
 	}
 	addRequestIDToHTTPResponse(w, resp)
 	// Status code and body
 	w.WriteHeader(int(resp.StatusCode))
-	w.Write([]byte(resp.GetBody()))
+	w.Write([]byte(resp.Body))
 }
 
 func addRequestIDToHTTPResponse(w http.ResponseWriter, resp *protobuf.Response) {
-	w.Header().Set("Postman-Id", resp.GetRequestId())
+	w.Header().Set("Postman-Id", resp.RequestId)
 }
 
 func createResponseError(err interface{}) map[string]string {
@@ -208,25 +208,11 @@ func createResponseError(err interface{}) map[string]string {
 }
 
 func sendJSON(w http.ResponseWriter, arr interface{}, statusCode int) {
-	content, err := json.Marshal(arr)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	sendResponse(w, content, statusCode)
+	lib.SendJSON(w, arr, statusCode)
 }
 
 func sendResponse(w http.ResponseWriter, content []byte, statusCode int) {
-	if content == nil {
-		content = []byte{0x00}
-	}
-	contentLength := strconv.Itoa(len(content))
-	w.Header().Set("Content-Length", contentLength)
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("Server", "Postman")
-
-	w.WriteHeader(statusCode)
-	w.Write(content)
+	lib.SendResponse(w, content, statusCode)
 }
 
 func convertHTTPHeadersToSlice(head map[string][]string) []string {
