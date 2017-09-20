@@ -127,7 +127,33 @@ Discard-Response: Yes
 
 The response will always be an immediate HTTP response with `201` status code and no body.
 
+# Dashboard
 
+Each postgres instance comes with a built-in dashboard service which by default you can access on `http://localhost:18130`
 
+# Stats API
+
+## Get Request metrics
+
+```bash
+curl http://localhost:18130/stats/requests
+```
+
+Response
+
+```javascript
+{
+    "incoming": {
+        "last_minute": {
+            "<service-name>": 1
+        }
+    }, 
+    "outgoing": {
+        "last_minute": {
+            "<service-name>": 1
+        }
+    }
+}
+```
 
 
