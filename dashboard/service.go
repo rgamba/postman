@@ -88,12 +88,12 @@ func renderView(w http.ResponseWriter, tpl string, data interface{}) {
 		}
 	}()
 
-	header := string(getStaticAsset("../assets/html/header.html"))
-	footer := string(getStaticAsset("../assets/html/footer.html"))
-
-	t := template.New("main")
-	tpl = header + string(getStaticAsset("../assets/html/index.html")) + footer
-	t.Parse(string(tpl))
+	t := template.New("header")
+	t.Parse(string(getStaticAsset("../assets/html/header.html")))
+	t = t.New("footer")
+	t.Parse(string(getStaticAsset("../assets/html/footer.html")))
+	t = t.New("index")
+	t.Parse(string(getStaticAsset("../assets/html/index.html")))
 
 	err := t.Execute(w, data)
 	if err != nil {
