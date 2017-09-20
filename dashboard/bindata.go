@@ -88,7 +88,7 @@ func AssetsHtmlFooterHtml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "../assets/html/footer.html", size: 904, mode: os.FileMode(420), modTime: time.Unix(1505917663, 0)}
+	info := bindataFileInfo{name: "../assets/html/footer.html", size: 904, mode: os.FileMode(420), modTime: time.Unix(1505920459, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -108,7 +108,7 @@ func AssetsHtmlHeaderHtml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "../assets/html/header.html", size: 1863, mode: os.FileMode(420), modTime: time.Unix(1505918982, 0)}
+	info := bindataFileInfo{name: "../assets/html/header.html", size: 1863, mode: os.FileMode(420), modTime: time.Unix(1505920459, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -128,7 +128,7 @@ func AssetsHtmlIndexHtml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "../assets/html/index.html", size: 3536, mode: os.FileMode(420), modTime: time.Unix(1505920294, 0)}
+	info := bindataFileInfo{name: "../assets/html/index.html", size: 3536, mode: os.FileMode(420), modTime: time.Unix(1505920459, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -148,7 +148,7 @@ func AssetsHtmlSettingsHtml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "../assets/html/settings.html", size: 849, mode: os.FileMode(420), modTime: time.Unix(1505920287, 0)}
+	info := bindataFileInfo{name: "../assets/html/settings.html", size: 849, mode: os.FileMode(420), modTime: time.Unix(1505920459, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -168,7 +168,7 @@ func AssetsImgProcess1Png() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "../assets/img/process1.png", size: 24685, mode: os.FileMode(420), modTime: time.Unix(1505831519, 0)}
+	info := bindataFileInfo{name: "../assets/img/process1.png", size: 24685, mode: os.FileMode(420), modTime: time.Unix(1505920459, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -188,7 +188,7 @@ func AssetsImgProcess2Png() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "../assets/img/process2.png", size: 38509, mode: os.FileMode(420), modTime: time.Unix(1505831520, 0)}
+	info := bindataFileInfo{name: "../assets/img/process2.png", size: 38509, mode: os.FileMode(420), modTime: time.Unix(1505920459, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
