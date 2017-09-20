@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/rgamba/postman/async"
+	"github.com/rgamba/postman/lib"
 	"github.com/rgamba/postman/stats"
 
 	"github.com/spf13/viper"
@@ -25,6 +26,7 @@ func StartHTTPServer(port int, config *viper.Viper, version string, build string
 	appVersion = version
 	appBuild = build
 	mux := http.NewServeMux()
+	mux.HandleFunc("/stats/requests", statsHandler)
 	mux.HandleFunc("/settings", settingsHandler)
 	mux.HandleFunc("/", defaultHandler)
 
@@ -56,11 +58,23 @@ func defaultHandler(w http.ResponseWriter, r *http.Request) {
 		"currentServiceName":      appConfig.GetString("service.name"),
 		"currentServiceInstances": async.GetServiceInstances(appConfig.GetString("service.name")),
 		"processId":               os.Getpid(),
-		"requests":                stats.GetRequestsLastMinutePerService(),
+		"incomingRequests":        stats.GetRequestsLastMinutePerService(stats.Incoming),
+		"outgoingRequests":        stats.GetRequestsLastMinutePerService(stats.Outgoing),
 		"appVersion":              appVersion,
 		"appBuild":                appBuild,
 	}
 	renderView(w, "index.html", context)
+}
+
+func statsHandler(w http.ResponseWriter, r *http.Request) {
+	lib.SendJSON(w, map[string]interface{}{
+		"outgoing": map[string]interface{}{
+			"last_minute": stats.GetRequestsLastMinutePerService(stats.Outgoing),
+		},
+		"incoming": map[string]interface{}{
+			"last_minute": stats.GetRequestsLastMinutePerService(stats.Incoming),
+		},
+	}, 200)
 }
 
 func renderView(w http.ResponseWriter, tpl string, data interface{}) {

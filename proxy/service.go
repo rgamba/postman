@@ -2,16 +2,15 @@ package proxy
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/rgamba/postman/async"
 	"github.com/rgamba/postman/async/protobuf"
+	"github.com/rgamba/postman/lib"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -208,25 +207,11 @@ func createResponseError(err interface{}) map[string]string {
 }
 
 func sendJSON(w http.ResponseWriter, arr interface{}, statusCode int) {
-	content, err := json.Marshal(arr)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	sendResponse(w, content, statusCode)
+	lib.SendJSON(w, arr, statusCode)
 }
 
 func sendResponse(w http.ResponseWriter, content []byte, statusCode int) {
-	if content == nil {
-		content = []byte{0x00}
-	}
-	contentLength := strconv.Itoa(len(content))
-	w.Header().Set("Content-Length", contentLength)
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("Server", "Postman")
-
-	w.WriteHeader(statusCode)
-	w.Write(content)
+	lib.SendResponse(w, content, statusCode)
 }
 
 func convertHTTPHeadersToSlice(head map[string][]string) []string {

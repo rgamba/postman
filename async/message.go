@@ -49,7 +49,7 @@ func SendRequestMessage(ch *amqp.Channel, serviceName string, request *protobuf.
 	}
 	// Save the request in the request queue.
 	appendRequest(request, onResponse)
-	go stats.RecordRequest(serviceName)
+	go stats.RecordRequest(serviceName, stats.Outgoing)
 }
 
 // SendMessageAndDiscardResponse does exactly the same as SendMessage but
@@ -71,7 +71,7 @@ func SendMessageAndDiscardResponse(ch *amqp.Channel, serviceName string, request
 	if err != nil {
 		return err
 	}
-	go stats.RecordRequest(serviceName)
+	go stats.RecordRequest(serviceName, stats.Outgoing)
 	return nil
 }
 
@@ -116,6 +116,8 @@ func processMessageRequest(msg []byte) error {
 	if OnNewRequest != nil {
 		go OnNewRequest(*request)
 	}
+	// Record incomming request
+	go stats.RecordRequest(serviceName, stats.Incoming)
 
 	var response *protobuf.Response
 	if ResponseMiddleware != nil {
