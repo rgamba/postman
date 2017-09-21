@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/rgamba/postman/async/protobuf"
 	"github.com/satori/go.uuid"
@@ -12,54 +13,73 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// OnNewResponse execute this method each time a new
-// message response gets to the response queue.
-var OnNewResponse func(protobuf.Response)
+var (
+	// OnNewResponse execute this method each time a new
+	// message response gets to the response queue.
+	OnNewResponse func(protobuf.Response)
+	// OnNewRequest will get executed each time a new requests
+	// gets delivered to our instance.
+	OnNewRequest func(protobuf.Request)
+	// We'll use only one connection, this is the one.
+	conn *amqp.Connection
+	// These channels are only used for new message consuming.
+	responseChannel *amqp.Channel
+	requestChannel  *amqp.Channel
+	mutex           = &sync.Mutex{}
+	// The queue name we'll consume the response messages from.
+	responseQueueName string
+	// We'll store the service name here.
+	serviceName string
+	// Signal to notify if connection fails
+	connCloseError = make(chan *amqp.Error)
+)
 
-// OnNewRequest will get executed each time a new requests
-// gets delivered to our instance.
-var OnNewRequest func(protobuf.Request)
+func connectToServer(uri string) *amqp.Connection {
+	for {
+		con, err := amqp.Dial(uri)
+		if err == nil {
+			return con
+		}
+		log.WithFields(log.Fields{
+			"error": err,
+		}).Warnf("Connection error")
+		log.Info("Trying to reconnect to AMQP server")
+		time.Sleep(1 * time.Second)
+	}
+}
 
-// We'll use only one connection, this is the one.
-var conn *amqp.Connection
+func serverConnector(uri string) {
+	var amqpErr *amqp.Error
 
-// These channels are only used for new message consuming.
-var responseChannel *amqp.Channel
-var requestChannel *amqp.Channel
-var mutex = &sync.Mutex{}
+	for {
+		amqpErr = <-connCloseError
+		if amqpErr != nil {
+			log.Infof("Connecting to %s", uri)
 
-// The queue name we'll consume the response messages from.
-var responseQueueName string
+			conn = connectToServer(uri)
+			connCloseError = make(chan *amqp.Error)
+			conn.NotifyClose(connCloseError)
 
-// We'll store the service name here.
-var serviceName string
+			// Response queue
+			err := consumeReponseMessages()
+			if err != nil {
+				continue
+			}
+			// Request queue
+			err = consumeRequestMessages()
+			if err != nil {
+				continue
+			}
+		}
+	}
+}
 
 // Connect starts the connection to the AMQP server.
-func Connect(uri string, service string) error {
+func Connect(uri string, service string) {
 	serviceName = service
-	var err error
-	conn, err = amqp.Dial(uri)
-	if err != nil {
-		return fmt.Errorf("Unable to connect to the AMQP server: %s", err)
-	}
-	err = declareResponseChannelAndQueue()
-	if err != nil {
-		return fmt.Errorf("Error creating the AMQP response channel: %s", err)
-	}
-	err = ensureRequestQueue()
-	if err != nil {
-		return fmt.Errorf("Error creating the AMQP request queue: %s", err)
-	}
-	err = consumeReponseMessages()
-	if err != nil {
-		return fmt.Errorf("Response queue consume error: %s", err)
-	}
-	err = consumeRequestMessages()
-	if err != nil {
-		return fmt.Errorf("Request queue consume error: %s", err)
-	}
-
-	return nil
+	connCloseError = make(chan *amqp.Error)
+	go serverConnector(uri)
+	connCloseError <- amqp.ErrClosed
 }
 
 // GetResponseQueueName doesn't need description.
@@ -146,7 +166,22 @@ func Close() {
 
 // Consume messages on the response queue.
 func consumeReponseMessages() error {
-	msgs, err := responseChannel.Consume(
+	err := declareResponseChannelAndQueue()
+	if err != nil {
+		log.WithFields(log.Fields{
+			"error": err,
+		}).Errorf("Error creating the response queue")
+		return err
+	}
+	ch, err := conn.Channel()
+	if err != nil {
+		log.WithFields(log.Fields{
+			"error": err,
+		}).Errorf("Error creating channel for response")
+		return err
+	}
+
+	msgs, err := ch.Consume(
 		responseQueueName, // Queue name
 		"",                // Consumer
 		true,              // Auto ack
@@ -158,21 +193,39 @@ func consumeReponseMessages() error {
 	if err != nil {
 		return err
 	}
-	go func() {
+	go func(ch *amqp.Channel) {
+		defer ch.Close()
 		for d := range msgs {
 			err := processMessageResponse(d.Body)
 			if err != nil {
 				log.Error(err)
 			}
 		}
-	}()
+		go consumeReponseMessages()
+		log.Warn("Stopped consuming response messages")
+	}(ch)
 	return nil
 }
 
 // Consume messages on the request queue.
 // Note that this is a shared queue, a non exclusive queue.
 func consumeRequestMessages() error {
-	msgs, err := responseChannel.Consume(
+	// Ensure there is a request queue declared.
+	err := ensureRequestQueue()
+	if err != nil {
+		log.WithFields(log.Fields{
+			"error": err,
+		}).Errorf("Error creating the request queue")
+		return err
+	}
+	ch, err := conn.Channel()
+	if err != nil {
+		log.WithFields(log.Fields{
+			"error": err,
+		}).Errorf("Error creating channel for request")
+		return err
+	}
+	msgs, err := ch.Consume(
 		getRequestQueueName(), // Queue name
 		"",    // Consumer
 		false, // Auto ack
@@ -182,9 +235,12 @@ func consumeRequestMessages() error {
 		nil,   // args
 	)
 	if err != nil {
-		return err
+		log.WithFields(log.Fields{
+			"error": err,
+		}).Fatalf("Error creating request channel")
 	}
-	go func() {
+	go func(ch *amqp.Channel) {
+		defer ch.Close()
 		for d := range msgs {
 			if err := processMessageRequest(d.Body); err != nil {
 				log.WithFields(log.Fields{
@@ -193,7 +249,9 @@ func consumeRequestMessages() error {
 			}
 			d.Ack(false)
 		}
-	}()
+		go consumeRequestMessages()
+		log.Warn("Stopped consuming request messages")
+	}(ch)
 	return nil
 }
 
