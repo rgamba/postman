@@ -1,6 +1,6 @@
 BINARY=postman
 
-VERSION=0.2
+VERSION=0.3
 BUILD=`git rev-parse HEAD | head -c 8`
 
 LDFLAGS="-X main.Version=${VERSION} -X main.Build=${BUILD}"
