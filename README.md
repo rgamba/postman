@@ -3,14 +3,10 @@
 Postman is a HTTP to AMQP reverse proxy that combines the ease of
 implementing an HTTP API with the benefits of async inter-service communication.
 
-Here is a simple diagram of how Postman works
-
-
-<img src="./assets/img/process1.png" align="left" alt="process" style="margin: 10px 0 20px 0" />
-
-
 Most of the HTTP services use a reverse proxy (nginx, Apache, etc) already, you can
 think of **postman** as the async equivalent to those reverse proxies.
+
+**Why async?**
 
 REST over HTTP might not be the ideal protocol for internal microservice
 communication, but it is certainly the easiest and fastest to implement.
@@ -18,6 +14,12 @@ communication, but it is certainly the easiest and fastest to implement.
 AMQP or any other async protocol might be the best, but it is certainly
 not as easy and straight forward to implement as regular HTTP. Plus, many
 of our existing services use HTTP already.
+
+Here is a simple diagram of how Postman works
+
+
+<img src="./assets/img/process1.png" align="left" alt="process" style="margin: 10px 0 20px 0" />
+
 
 **What are the benefits?**
 
