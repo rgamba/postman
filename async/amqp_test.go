@@ -6,11 +6,12 @@ import (
 	"os"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/rgamba/postman/async/protobuf"
-
 	log "github.com/sirupsen/logrus"
+
 	"github.com/streadway/amqp"
 	"github.com/stretchr/testify/assert"
 )
@@ -18,11 +19,6 @@ import (
 func TestMain(m *testing.M) {
 	log.SetOutput(ioutil.Discard)
 	os.Exit(m.Run())
-}
-
-func TestConnectInvalid(t *testing.T) {
-	err := Connect("amqp://guest:guest@localhost:56721", "test-service")
-	assert.NotNil(t, err)
 }
 
 func TestRequestQueueName(t *testing.T) {
@@ -197,6 +193,7 @@ func _queueExists(queueName string) bool {
 
 func _connect() {
 	Connect("amqp://guest:guest@localhost:5672", "test-service")
+	time.Sleep(time.Millisecond * 100)
 }
 
 func _close_connection() {

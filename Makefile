@@ -48,6 +48,8 @@ test.setup:
 	@go get github.com/golang/dep/cmd/dep
 	@echo "==> Install golint"
 	@go get github.com/golang/lint
+	@echo "==> Install go-bin"
+	@go get -u github.com/jteeuwen/go-bindata/...
 	@echo "==> Install dependencies"
 	@dep ensure
 

@@ -39,13 +39,7 @@ func main() {
 		log.Info("Service name: ", cmd.Config.GetString("service.name"))
 	}
 
-	err = async.Connect(cmd.Config.GetString("broker.uri"), cmd.Config.GetString("service.name"))
-	if err != nil {
-		log.Fatal(err)
-	}
-	if cmd.isVerbose2() {
-		log.Infof("Successfully connected to AMQP server on %s", cmd.Config.GetString("broker.uri"))
-	}
+	async.Connect(cmd.Config.GetString("broker.uri"), cmd.Config.GetString("service.name"))
 	defer async.Close()
 
 	if cmd.isVerbose3() {
