@@ -79,6 +79,8 @@ func Connect(uri string, service string) {
 	serviceName = service
 	connCloseError = make(chan *amqp.Error)
 	go serverConnector(uri)
+	// Unlock the first loop in serverConnection
+	// by passing a value to the channel.
 	connCloseError <- amqp.ErrClosed
 }
 
