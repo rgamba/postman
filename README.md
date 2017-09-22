@@ -30,26 +30,22 @@ Here is a simple diagram of how Postman works
 **Here's how a typical `Service A -> Service B` request looks like using postman:**
 
 ```
-+---+---------------+-------------+-------------+-------------+---+
+------------------------------------------------------------------
     |               |             |             |             |
-    +--------------->             |             |             |
-    |1. HTTP request|             |             |             |
-    |to service B   +------------->             |             |
-    |               |2. Serialize |             |             |
-    |               |& send async +------------->             |
-    |               |             |3. Send to   |             |
-    |               |             |a service B  +------------->
-    |               |             |instance     |4. Send HTTP |
-    |               |             |             |request to   |
+    |-------------->|             |             |             |
+    |1. HTTP request|------------>|             |             |
+    |to service B   |2. Serialize |------------>|             |
+    |               |& send async |3. Send to   |------------>|
+    |               |             |a service B  |4. Send HTTP |
+    |               |             |instance     |request to   |
     |               |             |             |service B    |
-    |               |             |             |             |
-    |               |             |             <-------------+
-    |               |             <-------------+5. Send HTTP |
-    |               <-------------+6. Serialize |response.    |
-    <---------------+7. Send to   |& send async |             |
+    |               |             |             |<------------|
+    |               |             |<------------|5. Send HTTP |
+    |               |<------------|6. Serialize |response.    |
+    |<--------------|7. Send to   |& send async |             |
     |8. Send HTTP   |response     |             |             |
     |response.      |queue        |             |             |
-    +               +             +             +             +
+    |               |             |             |             |
 
 Service A        Service A     RabbitMQ      Service B     Service B
                  Postman                     Postman
