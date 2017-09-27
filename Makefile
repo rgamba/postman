@@ -65,3 +65,7 @@ todo:
 .PHONY:clean
 clean:
 	@rm -rf build/*
+
+.PHONY:docker
+docker:
+	@docker build -t postman .
