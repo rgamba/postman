@@ -101,3 +101,13 @@ Code            | Description       | Expected action
 --              | --                | --
 invalid_version | The client is unable to process the message version, is incompatible. | The message must be ack. Then a clonned message with  the AMQP header `retry` value incremented by 1 (1 if header didn't existed).
 invalid_format  | Error while trying to decode message. | None   
+no_available_instances | When there are no available instances at the moment to process the request. | Assume there is a service outage at the moment and cache the unavailable service momentarily for 1 min.
+
+# AMQP Headers
+
+The AMQP message can sometimes have one or more AMQP headers. The client must inspect the headers and act acoardingly:
+
+Header | Possible values | Expected action
+-- | -- | --
+error | One of the error codes | Inspect and take action based on the error code.
+unhealthy_count | [0-3] | If `fwd_host` is healthy, ignore. If it's unhealthy, then: IF the value >= 3 THEN send `no_available_instances` error message. ELSE, increment the value by 1 and put the message back in the request queue.
