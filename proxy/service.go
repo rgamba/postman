@@ -24,7 +24,7 @@ func StartHTTPServer(port int, forwardToHost string) *http.Server {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/_postman/multiple/", multipleCalls)
-	mux.HandleFunc("/", defaultHandler)
+	mux.HandleFunc("/", outgoingRequestHandler)
 
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
@@ -105,7 +105,7 @@ func convertHTTPResponseToProtoResponse(response *http.Response) (*protobuf.Resp
 // We got an outgoing request. defaultHandler will marshall the http request
 // and convert it to a protobuf.Response and then send it via the async package.
 // TODO: We need to break this large function apart.
-func defaultHandler(w http.ResponseWriter, r *http.Request) {
+func outgoingRequestHandler(w http.ResponseWriter, r *http.Request) {
 	ch, err := async.CreateNewChannel()
 	if err != nil {
 		log.WithFields(log.Fields{
