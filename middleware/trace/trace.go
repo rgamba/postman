@@ -1,38 +1,14 @@
 package trace
 
 import (
-	"io"
-
-	"github.com/uber/jaeger-lib/metrics"
-
-	"github.com/uber/jaeger-client-go"
-	jconfig "github.com/uber/jaeger-client-go/config"
-	jlog "github.com/uber/jaeger-client-go/log"
+	"github.com/rgamba/postman/async/protobuf"
+	"github.com/rgamba/postman/middleware"
+	"github.com/rgamba/postman/stats"
 )
 
-var closer io.Closer
-
-func Init(serviceName string) error {
-	config := jconfig.Configuration{
-		Sampler: &jconfig.SamplerConfig{
-			Type:  jaeger.SamplerTypeConst,
-			Param: 1,
-		},
-		Reporter: &jconfig.ReporterConfig{
-			LogSpans: true,
-		},
-	}
-
-	jLogger := jlog.StdLogger
-	jMetricsFactory := metrics.NullFactory
-
-	closer, err := config.InitGlobalTracer(
-		serviceName,
-		jconfig.Logger(jLogger),
-		jconfig.Metrics(jMetricsFactory),
-	)
-	if err != nil {
-		return err
-	}
-	return nil
+func Init() {
+	middleware.RegisterIncomingRequestMiddleware(func(req *protobuf.Request) *protobuf.Request {
+		go stats.RecordRequest(req.Service, stats.Outgoing)
+		return req
+	})
 }
