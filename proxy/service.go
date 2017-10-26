@@ -123,8 +123,8 @@ func outgoingRequestHandler(w http.ResponseWriter, r *http.Request) {
 		Headers:       convertHTTPHeadersToSlice(r.Header),
 		Body:          string(body),
 		Endpoint:      getPathWithoutServiceName(r.URL.Path),
-		ResponseQueue: async.GetResponseQueueName(),
-		Service:       async.GetServiceName(),
+		ResponseQueue: async.ResponseQueueName,
+		Service:       async.GetServiceName,
 	}
 	serviceName := getServiceNameFromPath(r.URL.Path)
 	if serviceName == "" {

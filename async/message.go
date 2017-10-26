@@ -2,12 +2,15 @@ package async
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/rgamba/postman/async/protobuf"
-	"github.com/rgamba/postman/stats"
 	"github.com/streadway/amqp"
 	"github.com/twinj/uuid"
+
+	"github.com/rgamba/postman/async/protobuf"
+	"github.com/rgamba/postman/middleware"
+	"github.com/rgamba/postman/stats"
 )
 
 // ResponseMiddleware is the function that needs to be injected
@@ -20,6 +23,7 @@ var ResponseMiddleware func(*protobuf.Request) (*protobuf.Response, error)
 // The hash key will be the request ID and the value will be the queue
 // name where we need to send the response to.
 var requests = map[string]*requestRecord{}
+var mutex = &sync.Mutex{}
 
 type requestRecord struct {
 	request    *protobuf.Request
@@ -35,6 +39,8 @@ func SendRequestMessage(ch *amqp.Channel, serviceName string, request *protobuf.
 		go onResponse(nil, createInvalidQueueNameError(queueName))
 		return
 	}
+	// Apply middleware
+	middleware.ProcessOutgoingRequestMiddlewares(request)
 	// Encode message.
 	message, _err := proto.Marshal(request)
 	if _err != nil {
@@ -61,6 +67,8 @@ func SendMessageAndDiscardResponse(ch *amqp.Channel, serviceName string, request
 	if !queueExists(ch, queueName) {
 		return createInvalidQueueNameError(queueName)
 	}
+	// Apply middleware
+	middleware.ProcessOutgoingRequestMiddlewares(request)
 	// Encode message.
 	message, _err := proto.Marshal(request)
 	if _err != nil {
@@ -97,9 +105,7 @@ func processMessageResponse(msg []byte) error {
 	if err := proto.Unmarshal(msg, response); err != nil {
 		return err
 	}
-	if OnNewResponse != nil {
-		go OnNewResponse(*response)
-	}
+	middleware.ProcessOutgoingResponseMiddlewares(response)
 	return matchResponseAndSendCallback(response)
 }
 
@@ -112,12 +118,9 @@ func processMessageRequest(msg []byte) error {
 	if err := proto.Unmarshal(msg, request); err != nil {
 		return err
 	}
-	// Log?
-	if OnNewRequest != nil {
-		go OnNewRequest(*request)
-	}
-	// Record incomming request
-	go stats.RecordRequest(request.Service, stats.Incoming)
+
+	// Apply middleware
+	middleware.ProcessIncomingRequestMiddlewares(request)
 
 	var response *protobuf.Response
 	if ResponseMiddleware != nil {
@@ -129,6 +132,10 @@ func processMessageRequest(msg []byte) error {
 	} else {
 		response = &protobuf.Response{StatusCode: 501, RequestId: request.Id}
 	}
+
+	// Apply response middleware
+	middleware.ProcessIncomingResponseMiddlewares(response)
+
 	// We'll send a response only if we have a response queue name
 	// if we don't have a queue, then it means we don't need to send a response back.
 	if request.ResponseQueue != "" {
@@ -173,6 +180,7 @@ func matchResponseAndSendCallback(response *protobuf.Response) error {
 	return nil
 }
 
+// Append a new request to the requests queue.
 func appendRequest(request *protobuf.Request, onResponse func(*protobuf.Response, *Error)) {
 	req := &requestRecord{
 		request:    request,
@@ -183,12 +191,17 @@ func appendRequest(request *protobuf.Request, onResponse func(*protobuf.Response
 	mutex.Unlock()
 }
 
+// Remove a request from the requests queue.
+// This is a thread-safe operation.
 func removeRequest(requestID string) {
 	mutex.Lock()
 	delete(requests, requestID)
 	mutex.Unlock()
 }
 
+// Try to find the request on the requests queue
+// given the requestID.
+// This is a thread-safe operation.
 func getResponseRequest(requestID string) *requestRecord {
 	mutex.Lock()
 	val, ok := requests[requestID]

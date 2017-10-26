@@ -3,10 +3,8 @@ package async
 import (
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
-	"github.com/rgamba/postman/async/protobuf"
 	"github.com/satori/go.uuid"
 	"github.com/streadway/amqp"
 
@@ -14,40 +12,36 @@ import (
 )
 
 var (
-	// OnNewResponse execute this method each time a new
-	// message response gets to the response queue.
-	OnNewResponse func(protobuf.Response)
-	// OnNewRequest will get executed each time a new requests
-	// gets delivered to our instance.
-	OnNewRequest func(protobuf.Request)
+	// ResponseQueueName is the queue name we'll consume the response messages from.
+	ResponseQueueName = createResponseQueueName()
+	// ServiceName is the name of our service.
+	ServiceName string
 	// We'll use only one connection, this is the one.
 	conn *amqp.Connection
-	// These channels are only used for new message consuming.
-	responseChannel *amqp.Channel
-	requestChannel  *amqp.Channel
-	mutex           = &sync.Mutex{}
-	// The queue name we'll consume the response messages from.
-	responseQueueName string
-	// We'll store the service name here.
-	serviceName string
 	// Signal to notify if connection fails
 	connCloseError = make(chan *amqp.Error)
 )
 
-func connectToServer(uri string) *amqp.Connection {
-	for {
-		con, err := amqp.Dial(uri)
-		if err == nil {
-			return con
-		}
-		log.WithFields(log.Fields{
-			"error": err,
-		}).Warnf("Connection error")
-		log.Info("Trying to reconnect to AMQP server")
-		time.Sleep(1 * time.Second)
-	}
+// Create a random response queue name.
+// We'll listen to responses to the outgoing requests
+// on this queue name.
+func createResponseQueueName() string {
+	uniqid := uuid.NewV4()
+	return fmt.Sprintf("postman.resp.%s", uniqid)
 }
 
+// Connect starts the connection to the AMQP server.
+func Connect(uri string, service string) {
+	ServiceName = service
+	connCloseError = make(chan *amqp.Error)
+	go serverConnector(uri)
+	// Unlock the first loop in serverConnection
+	// by passing a value to the channel.
+	connCloseError <- amqp.ErrClosed
+}
+
+// Try to connect to the server and gracefully
+// handle any server connection errors and retries.
 func serverConnector(uri string) {
 	var amqpErr *amqp.Error
 
@@ -74,24 +68,19 @@ func serverConnector(uri string) {
 	}
 }
 
-// Connect starts the connection to the AMQP server.
-func Connect(uri string, service string) {
-	serviceName = service
-	connCloseError = make(chan *amqp.Error)
-	go serverConnector(uri)
-	// Unlock the first loop in serverConnection
-	// by passing a value to the channel.
-	connCloseError <- amqp.ErrClosed
-}
-
-// GetResponseQueueName doesn't need description.
-func GetResponseQueueName() string {
-	return responseQueueName
-}
-
-// GetServiceName doesn't need description.
-func GetServiceName() string {
-	return serviceName
+// Connect to the AMQP server.
+func connectToServer(uri string) *amqp.Connection {
+	for {
+		con, err := amqp.Dial(uri)
+		if err == nil {
+			return con
+		}
+		log.WithFields(log.Fields{
+			"error": err,
+		}).Warnf("Connection error")
+		log.Info("Trying to reconnect to AMQP server")
+		time.Sleep(1 * time.Second)
+	}
 }
 
 // CreateNewChannel is used to create new channels.
@@ -110,14 +99,12 @@ func CreateNewChannel() (*amqp.Channel, *Error) {
 // consuming from that queue. Plus, that queue will be destroyed when this
 // instance gets disconnected.
 func declareResponseChannelAndQueue() error {
-	var err error
-	responseChannel, err = conn.Channel()
+	responseChannel, err := conn.Channel()
 	if err != nil {
 		return err
 	}
-	responseQueueName = getResponseQueueName()
 	_, err = responseChannel.QueueDeclare(
-		responseQueueName, // Name
+		ResponseQueueName, // Name
 		true,              // Durable
 		true,              // Delete when unused
 		false,             // Exclusive
@@ -127,6 +114,8 @@ func declareResponseChannelAndQueue() error {
 	return err
 }
 
+// Make sure there is a request queue for the current service
+// already defined. If it already exists then we'll do nothing.
 func ensureRequestQueue() error {
 	ch, err := conn.Channel()
 	if err != nil {
@@ -143,24 +132,13 @@ func ensureRequestQueue() error {
 	return err
 }
 
+// Get the request queue name for the current service.
 func getRequestQueueName() string {
-	return fmt.Sprintf("postman.req.%s", serviceName)
-}
-
-func getResponseQueueName() string {
-	uniqid := uuid.NewV4()
-	return fmt.Sprintf("postman.resp.%s", uniqid)
+	return fmt.Sprintf("postman.req.%s", ServiceName)
 }
 
 // Close the connection to the AMQP server.
 func Close() {
-	if responseChannel != nil {
-		responseChannel.Cancel(responseQueueName, false)
-		responseChannel.Close()
-	}
-	if requestChannel != nil {
-		requestChannel.Close()
-	}
 	if conn != nil {
 		conn.Close()
 	}
@@ -184,7 +162,7 @@ func consumeReponseMessages() error {
 	}
 
 	msgs, err := ch.Consume(
-		responseQueueName, // Queue name
+		ResponseQueueName, // Queue name
 		"",                // Consumer
 		true,              // Auto ack
 		true,              // Exclusive
@@ -257,11 +235,13 @@ func consumeRequestMessages() error {
 	return nil
 }
 
+// Utility function to get the service name given the queue name.
 func extractServiceNameFromQueueName(queueName string) string {
 	parts := strings.Split(queueName, ".")
 	return parts[len(parts)-1]
 }
 
+// Check if a given queue name exists on the AMQP server.
 func queueExists(ch *amqp.Channel, queueName string) bool {
 	_, err := ch.QueueInspect(queueName)
 	if err == nil {
@@ -270,6 +250,7 @@ func queueExists(ch *amqp.Channel, queueName string) bool {
 	return false
 }
 
+// Publish a new AMQP message.
 func publishMessage(ch *amqp.Channel, message []byte, queueName string) *Error {
 	err := ch.Publish(
 		"", // Exchange, we don't use exchange
@@ -288,6 +269,7 @@ func publishMessage(ch *amqp.Channel, message []byte, queueName string) *Error {
 	return createError("unexpected", err.Error(), nil)
 }
 
+// Utility function to create an invalid queue error message.
 func createInvalidQueueNameError(queueName string) *Error {
 	return createError(
 		"queue_not_found",

@@ -38,36 +38,7 @@ func TestEnsureRequestQueue(t *testing.T) {
 func TestResponseQueueCreation(t *testing.T) {
 	_connect()
 	defer _close_connection()
-	assert.NotEmpty(t, responseQueueName)
-	assert.NotNil(t, responseChannel)
-	assert.True(t, _queueExists(responseQueueName))
-}
-
-func TestConsumeFromRequestQueue(t *testing.T) {
-	_connect()
-	defer _close_connection()
-	c := make(chan bool)
-	OnNewRequest = func(req protobuf.Request) {
-		assert.Equal(t, "test", req.Body)
-		c <- true
-	}
-	request := &protobuf.Request{Body: "test"}
-	msg, _ := proto.Marshal(request)
-	_publishMessage(msg, getRequestQueueName())
-	<-c
-}
-
-func TestConsumeFromResponseQueue(t *testing.T) {
-	_connect()
-	defer _close_connection()
-	c := make(chan bool)
-	OnNewResponse = func(resp protobuf.Response) {
-		c <- true
-	}
-	response := &protobuf.Response{Body: "test"}
-	msg, _ := proto.Marshal(response)
-	_publishMessage(msg, responseQueueName)
-	<-c
+	assert.NotEmpty(t, ResponseQueueName)
 }
 
 func TestQueueExists(t *testing.T) {
@@ -106,7 +77,7 @@ func TestSendMessage(t *testing.T) {
 	})
 	c := make(chan bool)
 	ch, _ := conn.Channel()
-	req := &protobuf.Request{Body: "test", Method: "GET", ResponseQueue: responseQueueName}
+	req := &protobuf.Request{Body: "test", Method: "GET", ResponseQueue: ResponseQueueName}
 	SendRequestMessage(ch, "service1", req, func(resp *protobuf.Response, err *Error) {
 		assert.Nil(t, err)
 		assert.Equal(t, "testresponse", resp.Body)
@@ -130,7 +101,7 @@ func TestSendMessageParallelCalls(t *testing.T) {
 	for i := 0; i <= 100; i++ {
 		go func(i int) {
 			wait.Add(1)
-			req := &protobuf.Request{Body: fmt.Sprintf("%d", i), Method: "GET", ResponseQueue: responseQueueName}
+			req := &protobuf.Request{Body: fmt.Sprintf("%d", i), Method: "GET", ResponseQueue: ResponseQueueName}
 			ch, _ := conn.Channel()
 			SendRequestMessage(ch, "service1", req, func(resp *protobuf.Response, err *Error) {
 				expectedBody := fmt.Sprintf("%d", i)
@@ -148,7 +119,7 @@ func TestSendMessageWhenQueueDoesntExist(t *testing.T) {
 	defer _close_connection()
 	c := make(chan bool)
 	ch, _ := conn.Channel()
-	req := &protobuf.Request{Body: "test", Method: "GET", ResponseQueue: responseQueueName}
+	req := &protobuf.Request{Body: "test", Method: "GET", ResponseQueue: ResponseQueueName}
 	SendRequestMessage(ch, "service1", req, func(resp *protobuf.Response, err *Error) {
 		assert.NotNil(t, err)
 		c <- true
@@ -162,7 +133,7 @@ func TestSendMessageWhenClosedChannel(t *testing.T) {
 	c := make(chan bool)
 	ch, _ := conn.Channel()
 	ch.Close()
-	req := &protobuf.Request{Body: "test", Method: "GET", ResponseQueue: responseQueueName}
+	req := &protobuf.Request{Body: "test", Method: "GET", ResponseQueue: ResponseQueueName}
 	SendRequestMessage(ch, "service1", req, func(resp *protobuf.Response, err *Error) {
 		assert.NotNil(t, err)
 		c <- true
@@ -217,7 +188,8 @@ func _publishMessage(message []byte, queueName string) error {
 }
 
 func _consumeQueue(queueName string, fn func([]byte)) {
-	msgs, _ := responseChannel.Consume(
+	ch, _ := CreateNewChannel()
+	msgs, _ := ch.Consume(
 		queueName, // Queue name
 		"",        // Consumer
 		true,      // Auto ack
