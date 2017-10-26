@@ -116,7 +116,6 @@ func outgoingRequestHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer ch.Close()
 
-	log.Debug("New outgoing request")
 	body, _ := ioutil.ReadAll(r.Body)
 	request := &protobuf.Request{
 		Method:        r.Method,
@@ -124,7 +123,7 @@ func outgoingRequestHandler(w http.ResponseWriter, r *http.Request) {
 		Body:          string(body),
 		Endpoint:      getPathWithoutServiceName(r.URL.Path),
 		ResponseQueue: async.ResponseQueueName,
-		Service:       async.GetServiceName,
+		Service:       async.ServiceName,
 	}
 	serviceName := getServiceNameFromPath(r.URL.Path)
 	if serviceName == "" {

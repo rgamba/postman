@@ -7,8 +7,7 @@ import (
 )
 
 func Init() {
-	middleware.RegisterIncomingRequestMiddleware(func(req *protobuf.Request) *protobuf.Request {
+	middleware.RegisterIncomingRequestMiddleware(func(req *protobuf.Request) {
 		go stats.RecordRequest(req.Service, stats.Outgoing)
-		return req
 	})
 }

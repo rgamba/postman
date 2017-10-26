@@ -13,9 +13,22 @@ func Init() {
 			"endpoint":   req.Endpoint,
 			"method":     req.Method,
 			"request_id": req.Id,
+			"requester":  req.Service,
 		}).Debug("Incoming request")
 	})
-
+	middleware.RegisterIncomingResponseMiddleware(func(resp *protobuf.Response) {
+		log.WithFields(log.Fields{
+			"status_code": resp.StatusCode,
+			"request_id":  resp.RequestId,
+		}).Debug("Incoming response")
+	})
+	middleware.RegisterOutgoingRequestMiddleware(func(req *protobuf.Request) {
+		log.WithFields(log.Fields{
+			"endpoint":   req.Endpoint,
+			"method":     req.Method,
+			"request_id": req.Id,
+		}).Debug("Outgoing request")
+	})
 	middleware.RegisterOutgoingResponseMiddleware(func(resp *protobuf.Response) {
 		log.WithFields(log.Fields{
 			"status_code": resp.StatusCode,
