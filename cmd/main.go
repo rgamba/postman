@@ -5,8 +5,9 @@ import (
 	"os"
 
 	"github.com/rgamba/postman/async"
-	"github.com/rgamba/postman/async/protobuf"
 	"github.com/rgamba/postman/dashboard"
+	"github.com/rgamba/postman/middleware/logger"
+	"github.com/rgamba/postman/middleware/trace"
 	"github.com/rgamba/postman/proxy"
 	"github.com/rgamba/postman/stats"
 
@@ -42,9 +43,7 @@ func main() {
 	async.Connect(cmd.Config.GetString("broker.uri"), cmd.Config.GetString("service.name"))
 	defer async.Close()
 
-	if cmd.isVerbose3() {
-		enableLogForRequestAndResponse(&cmd)
-	}
+	activateMiddlewares(&cmd)
 
 	// Start http proxy server
 	proxy.StartHTTPServer(cmd.Config.GetInt("http.listen_port"), cmd.Config.GetString("http.fwd_host"))
@@ -65,19 +64,10 @@ func main() {
 	<-c
 }
 
-func enableLogForRequestAndResponse(a *app) {
-	async.OnNewRequest = func(req protobuf.Request) {
-		log.WithFields(log.Fields{
-			"endpoint":   req.Endpoint,
-			"method":     req.Method,
-			"request_id": req.Id,
-		}).Debug("Incoming request")
-	}
-	async.OnNewResponse = func(resp protobuf.Response) {
-		log.WithFields(log.Fields{
-			"status_code": resp.StatusCode,
-			"request_id":  resp.RequestId,
-		}).Debug("Incoming response")
+func activateMiddlewares(cmd *app) {
+	trace.Init()
+	if cmd.isVerbose3() {
+		logger.Init()
 	}
 }
 

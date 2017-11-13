@@ -32,7 +32,6 @@ func TestMain(m *testing.M) {
 	// Http server or testserver is the HTTP proxy server exposed by
 	// postman.
 	httpServer = StartHTTPServer(TestServerPort, forwardHost)
-	defer async.Close()
 	os.Exit(m.Run())
 }
 
