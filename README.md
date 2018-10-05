@@ -20,6 +20,7 @@ Here is a simple diagram of how Postman works
 
 <img src="./assets/img/process1.png" align="left" alt="process" style="margin: 10px 0 20px 0" />
 
+**[TL;DR: Try out our demo](https://github.com/rgamba/postman-demo)**
 
 **What are the benefits?**
 
